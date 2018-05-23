@@ -1,5 +1,7 @@
+Cabal-version:       >= 1.10
 Name:                postgresql-simple
-Version:             0.5.3.0
+Version:             0.5.4.0
+
 Synopsis:            Mid-Level PostgreSQL client library
 Description:
     Mid-Level PostgreSQL client library, forked from mysql-simple.
@@ -12,13 +14,22 @@ Copyright:           (c) 2011 MailRank, Inc.
 Category:            Database
 Build-type:          Simple
 
-Cabal-version:       >= 1.9.2
-
 extra-source-files:
-     CONTRIBUTORS
-     CHANGELOG.md
+  CONTRIBUTORS
+  CHANGES.md
+  test/results/malformed-input.expected
+  test/results/unique-constraint-violation.expected
+
+tested-with:
+  GHC == 7.6.3
+   || == 7.8.4
+   || == 7.10.3
+   || == 8.0.2
+   || == 8.2.2
+   || == 8.4.2
 
 Library
+  default-language: Haskell2010
   hs-source-dirs: src
   Exposed-modules:
      Database.PostgreSQL.Simple
@@ -82,8 +93,12 @@ Library
     Build-depends:
       ghc-prim
 
-  extensions: DoAndIfThenElse, OverloadedStrings, BangPatterns, ViewPatterns
-              TypeOperators
+  default-extensions:
+    DoAndIfThenElse
+    OverloadedStrings
+    BangPatterns
+    ViewPatterns
+    TypeOperators
 
   ghc-options: -Wall -fno-warn-name-shadowing
 
@@ -93,10 +108,11 @@ source-repository head
 
 source-repository this
   type:     git
-  location: http://github.com/lpsmith/postgresql-simple
-  tag:      v0.5.3.0
+  location: http://github.com/hackage-trustees/postgresql-simple
+  tag:      v0.5.4.0
 
 test-suite test
+  default-language: Haskell2010
   type:           exitcode-stdio-1.0
 
   hs-source-dirs: test
@@ -109,12 +125,13 @@ test-suite test
 
   ghc-options: -Wall -fno-warn-name-shadowing -fno-warn-unused-do-bind
 
-  extensions: NamedFieldPuns
-            , OverloadedStrings
-            , Rank2Types
-            , RecordWildCards
-            , PatternGuards
-            , ScopedTypeVariables
+  default-extensions:
+    NamedFieldPuns
+    OverloadedStrings
+    Rank2Types
+    RecordWildCards
+    PatternGuards
+    ScopedTypeVariables
 
   build-depends: base
                , aeson

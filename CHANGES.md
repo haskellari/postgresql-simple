@@ -1,3 +1,6 @@
+### Version 0.5.4.0 (2018-05-23)
+  * Support GHC-8.4 (Semigroup/Monoid)
+
 ### Version 0.5.3.0 (2017-05-15)
   * Refactored some rudimentary cursor handling code out of the
     implementation of the fold operators,  into a new
