@@ -536,7 +536,7 @@ foldWithOptions_ :: (FromRow r) =>
                  -> a                 -- ^ Initial state for result consumer.
                  -> (a -> r -> IO a)  -- ^ Result consumer.
                  -> IO a
-foldWithOptions_ opts conn query a f = doFold opts fromRow conn query query a f
+foldWithOptions_ opts conn query' a f = doFold opts fromRow conn query' query' a f
 
 -- | A version of 'foldWithOptions_' taking a parser as an argument
 foldWithOptionsAndParser_ :: FoldOptions
@@ -546,7 +546,7 @@ foldWithOptionsAndParser_ :: FoldOptions
                           -> a                 -- ^ Initial state for result consumer.
                           -> (a -> r -> IO a)  -- ^ Result consumer.
                           -> IO a
-foldWithOptionsAndParser_ opts parser conn query a f = doFold opts parser conn query query a f
+foldWithOptionsAndParser_ opts parser conn query' a f = doFold opts parser conn query' query' a f
 
 doFold :: FoldOptions
        -> RowParser row
@@ -582,8 +582,8 @@ doFold FoldOptions{..} parser conn _template q a0 f = do
     go = bracket declare closeCursor $ \cursor ->
              let loop a = fetch cursor a >>=
                             \r -> case r of
-                                    Left a -> return a
-                                    Right a -> loop a
+                                    Left x -> return x
+                                    Right x -> loop x
                in loop a0
 
 -- FIXME: choose the Automatic chunkSize more intelligently
