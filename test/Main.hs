@@ -17,6 +17,7 @@ import Control.Monad
 import Data.Char
 import Data.List (sort)
 import Data.IORef
+import Data.Monoid ((<>))
 import Data.String (fromString)
 import Data.Typeable
 import GHC.Generics (Generic)
