@@ -4,10 +4,11 @@
 {-# LANGUAGE DoAndIfThenElse #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 import Common
-import Database.PostgreSQL.Simple.FromField (FromField)
-import Database.PostgreSQL.Simple.Types(Query(..),Values(..), PGArray(..))
-import Database.PostgreSQL.Simple.HStore
 import Database.PostgreSQL.Simple.Copy
+import Database.PostgreSQL.Simple.FromField (FromField)
+import Database.PostgreSQL.Simple.HStore
+import Database.PostgreSQL.Simple.Internal (breakOnSingleQuestionMark)
+import Database.PostgreSQL.Simple.Types(Query(..),Values(..), PGArray(..))
 import qualified Database.PostgreSQL.Simple.Transaction as ST
 
 import Control.Applicative
@@ -16,6 +17,7 @@ import Control.Monad
 import Data.Char
 import Data.List (sort)
 import Data.IORef
+import Data.String (fromString)
 import Data.Typeable
 import GHC.Generics (Generic)
 
@@ -237,6 +239,22 @@ testJSON TestEnv{..} = do
 
 testQM :: TestEnv -> Assertion
 testQM TestEnv{..} = do
+    -- Just test on a single string
+    let testQuery' b = "testing for ?" <> b <> " and making sure "
+        testQueryDoubleQM = testQuery' "?"
+        testQueryRest = "? is substituted"
+        testQuery = fromString $ testQueryDoubleQM <> testQueryRest
+        -- expect the entire first part with double QMs replaced with literal '?'
+        expected = (fromString $ testQuery' "", fromString testQueryRest)
+        tried = breakOnSingleQuestionMark testQuery
+        errMsg = mconcat
+            [ "Failed to break on single question mark exclusively:\n"
+            , "expected: ", show expected
+            , "result:   ", show tried
+            ]
+    assertBool errMsg $ tried == expected
+
+    -- Let's also test the question mark operators in action
     -- ? -> Does the string exist as a top-level key within the JSON value?
     positiveQuery "SELECT ?::jsonb ?? ?" (testObj, "foo" :: Text)
     negativeQuery "SELECT ?::jsonb ?? ?" (testObj, "baz" :: Text)

@@ -589,3 +589,19 @@ escapeIdentifier = escapeWrap PQ.escapeIdentifier
 
 escapeByteaConn :: Connection -> ByteString -> IO (Either ByteString ByteString)
 escapeByteaConn = escapeWrap PQ.escapeByteaConn
+
+breakOnSingleQuestionMark :: ByteString -> (ByteString, ByteString)
+breakOnSingleQuestionMark b = go (B8.empty, b)
+  where go (x,bs) = (x `B8.append` x',bs')
+                -- seperate from first QM
+          where tup@(noQ, restWithQ) = B8.break (=='?') bs
+                -- if end of query, just return
+                -- else check for second QM in 'go2'
+                (x', bs') = maybe tup go2 $
+                    -- drop found QM and peek at next char
+                    B8.uncons restWithQ >>= B8.uncons . snd
+                -- another QM after the first means:
+                -- take literal QM and keep going.
+                go2 ('?', t2) = go (noQ `B8.snoc` '?',t2)
+                -- Anything else means
+                go2 _ = tup

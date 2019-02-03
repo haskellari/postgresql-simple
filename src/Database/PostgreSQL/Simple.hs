@@ -282,12 +282,7 @@ buildQuery conn q template xs =
   where split s =
             -- This part escapes double '??'s to make literal '?'s possible
             -- in PostgreSQL queries using the JSON operators: @?@, @?|@ and @?&@
-            let (h,t) = go (B.empty,s)
-                go (x,bs) = (x `B.append` x',bs')
-                  where (h',t1) = B.break (=='?') bs
-                        (x',bs') = maybe (h',t1) go2 $ B.uncons t1 >>= B.uncons . snd
-                        go2 ('?',t2) = go (h' `B.snoc` '?',t2)
-                        go2 _ = (h',t1)
+            let (h,t) = breakOnSingleQuestionMark s
             in byteString h
                : if B.null t
                  then []
