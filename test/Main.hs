@@ -15,7 +15,7 @@ import Control.Applicative
 import Control.Exception as E
 import Control.Monad
 import Data.Char
-import Data.List (sort)
+import Data.List (concat, sort)
 import Data.IORef
 import Data.Monoid ((<>))
 import Data.String (fromString)
@@ -248,7 +248,7 @@ testQM TestEnv{..} = do
         -- expect the entire first part with double QMs replaced with literal '?'
         expected = (fromString $ testQuery' "", fromString testQueryRest)
         tried = breakOnSingleQuestionMark testQuery
-        errMsg = mconcat
+        errMsg = concat
             [ "Failed to break on single question mark exclusively:\n"
             , "expected: ", show expected
             , "result:   ", show tried
