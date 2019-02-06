@@ -81,6 +81,9 @@ import           GHC.Generics
 --   deriving ('GHC.Generics.Generic', 'FromRow')
 -- @
 --
+-- Note that this only works for product types (i.e. records) and does not
+-- support sum types or recursive types.
+--
 -- Note that 'field' evaluates its result to WHNF, so the caveats listed in
 -- mysql-simple and very early versions of postgresql-simple no longer apply.
 -- Instead, look at the caveats associated with user-defined implementations

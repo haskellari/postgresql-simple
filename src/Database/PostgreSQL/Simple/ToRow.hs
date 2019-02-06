@@ -43,6 +43,9 @@ import GHC.Generics
 -- data User = User { name :: String, fileQuota :: Int }
 --   deriving ('GHC.Generics.Generic', 'ToRow')
 -- @
+--
+-- Note that this only works for product types (i.e. records) and does not
+-- support sum types or recursive types.
 class ToRow a where
     toRow :: a -> [Action]
     default toRow :: (Generic a, GToRow (Rep a)) => a -> [Action]
