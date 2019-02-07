@@ -44,7 +44,7 @@ import GHC.Generics
 --   deriving ('GHC.Generics.Generic', 'ToRow')
 -- @
 --
--- Note that this only works for product types (i.e. records) and does not
+-- Note that this only works for product types (e.g. records) and does not
 -- support sum types or recursive types.
 class ToRow a where
     toRow :: a -> [Action]

@@ -81,7 +81,7 @@ import           GHC.Generics
 --   deriving ('GHC.Generics.Generic', 'FromRow')
 -- @
 --
--- Note that this only works for product types (i.e. records) and does not
+-- Note that this only works for product types (e.g. records) and does not
 -- support sum types or recursive types.
 --
 -- Note that 'field' evaluates its result to WHNF, so the caveats listed in
