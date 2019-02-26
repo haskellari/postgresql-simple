@@ -1,5 +1,7 @@
 branches: master
-postgresql: True
+-- postgresql: True
+tests: False
 
 -- services aren't supported on Travis on macOS
--- osx: 8.4.4
+osx: 8.4.4 8.6.3
+windows: 8.4.4 8.6.3

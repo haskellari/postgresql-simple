@@ -18,11 +18,7 @@ cache:
   directories:
     - $HOME/.cabal/packages
     - $HOME/.cabal/store
-
-services:
-- postgresql
-addons:
-  postgresql: '10'
+    - $HOME/.ghc-install
 
 before_cache:
   - rm -fv $CABALHOME/packages/hackage.haskell.org/build-reports.log
@@ -38,47 +34,55 @@ before_cache:
 matrix:
   include:
     - compiler: "ghc-8.6.3"
-    # env: TEST=--disable-tests BENCH=--disable-benchmarks
       addons: {apt: {packages: [ghc-ppa-tools,cabal-install-2.4,ghc-8.6.3], sources: [hvr-ghc]}}
     - compiler: "ghc-8.4.4"
-    # env: TEST=--disable-tests BENCH=--disable-benchmarks
       addons: {apt: {packages: [ghc-ppa-tools,cabal-install-2.4,ghc-8.4.4], sources: [hvr-ghc]}}
     - compiler: "ghc-8.2.2"
-    # env: TEST=--disable-tests BENCH=--disable-benchmarks
       addons: {apt: {packages: [ghc-ppa-tools,cabal-install-2.4,ghc-8.2.2], sources: [hvr-ghc]}}
     - compiler: "ghc-8.0.2"
-    # env: TEST=--disable-tests BENCH=--disable-benchmarks
       addons: {apt: {packages: [ghc-ppa-tools,cabal-install-2.4,ghc-8.0.2], sources: [hvr-ghc]}}
     - compiler: "ghc-7.10.3"
-    # env: TEST=--disable-tests BENCH=--disable-benchmarks
       addons: {apt: {packages: [ghc-ppa-tools,cabal-install-2.4,ghc-7.10.3], sources: [hvr-ghc]}}
     - compiler: "ghc-7.8.4"
-    # env: TEST=--disable-tests BENCH=--disable-benchmarks
       addons: {apt: {packages: [ghc-ppa-tools,cabal-install-2.4,ghc-7.8.4], sources: [hvr-ghc]}}
     - compiler: "ghc-7.6.3"
-    # env: TEST=--disable-tests BENCH=--disable-benchmarks
       addons: {apt: {packages: [ghc-ppa-tools,cabal-install-2.4,ghc-7.6.3], sources: [hvr-ghc]}}
+    - compiler: "ghc-8.4.4"
+      addons: {apt: {packages: [ghc-ppa-tools,cabal-install-2.4,ghc-8.4.4], sources: [hvr-ghc]}}
+      os: osx
+    - compiler: "ghc-8.4.4"
+      addons: {apt: {packages: [ghc-ppa-tools,cabal-install-2.4,ghc-8.4.4], sources: [hvr-ghc]}}
+      os: windows
 
 before_install:
   - HC=/opt/ghc/bin/${CC}
+  - HCVER=$(echo "$TRAVIS_COMPILER" | sed 's/ghc-//')
+  - echo $HCVER
   - HCPKG=${HC/ghc/ghc-pkg}
   - unset CC
   - CABAL=/opt/ghc/bin/cabal
   - CABALHOME=$HOME/.cabal
-  - "export PATH=\"$CABALHOME/bin:$PATH\""
+  - if [ "$TRAVIS_OS_NAME" = "windows" ]; then CABALHOME=$APPDATA/cabal; fi
+  - export PATH="$CABALHOME/bin:$PATH"
   - ROOTDIR=$(pwd)
+  - if [ "$TRAVIS_OS_NAME" = "osx" ]; then brew update; brew upgrade python@3; curl https://haskell.futurice.com/haskell-on-macos.py | python3 - --make-dirs --install-dir=$HOME/.ghc-install --cabal-alias=head install cabal-install-head ${TRAVIS_COMPILER}; fi
+  - if [ "$TRAVIS_OS_NAME" = "osx" ]; then HC=$HOME/.ghc-install/ghc/bin/$TRAVIS_COMPILER; HCPKG=${HC/ghc/ghc-pkg}; CABAL=$HOME/.ghc-install/ghc/bin/cabal; fi
+  - if [ "$TRAVIS_OS_NAME" = "windows" ]; then choco install -y cabal --version 2.4.1.0; choco install -y ghc --version ${HCVER} ; choco install -y postgresql10 --params '/Password:hunter2'; fi
+  - if [ "$TRAVIS_OS_NAME" = "windows" ]; then HC=/c/ProgramData/chocolatey/lib/ghc/tools/$TRAVIS_COMPILER/bin/ghc.exe; CABAL=/c/ProgramData/chocolatey/lib/cabal/tools/cabal-2.4.1.0/cabal.exe; fi
+  - if [ "$TRAVIS_OS_NAME" = "windows" ]; then find '/c/Program Files/postgresql/10/bin'; /c/Program\ Files/postgresql/10/bin/pg_config.exe; export PATH="/c/Program\ Files/postgresql/10/bin:$PATH"; echo "$PATH"; fi
   - HCNUMVER=$(( $(${HC} --numeric-version|sed -E 's/([0-9]+)\.([0-9]+)\.([0-9]+).*/\1 * 10000 + \2 * 100 + \3/') ))
   - echo $HCNUMVER
 
 install:
   - ${CABAL} --version
   - echo "$(${HC} --version) [$(${HC} --print-project-git-commit-id 2> /dev/null || echo '?')]"
-  - BENCH=${BENCH---enable-benchmarks}
-  - TEST=${TEST---enable-tests}
-  - UNCONSTRAINED=${UNCONSTRAINED-true}
+  - TEST=--enable-tests
+  - TEST=--disable-tests
+  - BENCH=--enable-benchmarks
   - GHCHEAD=${GHCHEAD-false}
+  - if [ "$TRAVIS_OS_NAME" = "windows" ]; then export CABALHOME=$APPDATA/cabal; else export CABALHOME=$HOME/.cabal; fi
   - travis_retry ${CABAL} update -v
-  - "sed -i.bak 's/^jobs:/-- jobs:/' $CABALHOME/config"
+  - sed -i.bak 's/^jobs:/-- jobs:/' $CABALHOME/config
   - rm -fv cabal.project cabal.project.local
   - grep -Ev -- '^\s*--' $CABALHOME/config | grep -Ev '^\s*$'
   - rm -f cabal.project
@@ -122,14 +126,14 @@ script:
   - ${CABAL} new-build -w ${HC} ${TEST} ${BENCH} all
   - if [ "x$TEST" = "x--enable-tests" ]; then ${CABAL} new-test -w ${HC} ${TEST} ${BENCH} all; fi
 
-  # ${CABAL} check
+  # cabal check
   - (cd postgresql-simple-* && ${CABAL} check)
 
   # haddock
   - ${CABAL} new-haddock -w ${HC} ${TEST} ${BENCH} all
 
   # Build without installed constraints for packages in global-db
-  - if $UNCONSTRAINED; then rm -f cabal.project.local; ${CABAL} new-build -w ${HC} --disable-tests --disable-benchmarks all; else echo "Not building without installed constraints"; fi
+  - rm -f cabal.project.local; ${CABAL} new-build -w ${HC} --disable-tests --disable-benchmarks all;
 
 # REGENDATA ["--config","cabal.haskell-ci","--output",".travis.yml","postgresql-simple.cabal"]
 # EOF
