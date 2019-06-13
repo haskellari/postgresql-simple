@@ -1,5 +1,10 @@
+### Unreleased
+
+  * Add `ToRow` instance for `NonEmpty`.
+    https://github.com/phadej/postgresql-simple/pull/16
+
 ### Version 0.6.2 (2019-04-26)
-  
+
   * Define `MonadFail Ok`.
 
 ### Version 0.6.1 (2019-03-04)
