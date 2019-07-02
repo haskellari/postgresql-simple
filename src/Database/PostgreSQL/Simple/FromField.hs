@@ -115,7 +115,7 @@ module Database.PostgreSQL.Simple.FromField
 
 import           Control.Applicative ( (<|>), (<$>), pure, (*>), (<*) )
 import           Control.Concurrent.MVar (MVar, newMVar)
-import           Control.Exception (Exception)
+import           Control.Exception (Exception, throw)
 import qualified Data.Aeson as JSON
 import qualified Data.Aeson.Internal as JSON
 import qualified Data.Aeson.Parser as JSON (value')
@@ -228,8 +228,15 @@ typeInfoByOid oid = Conversion $ \conn -> do
 -- | Returns the name of the column.  This is often determined by a table
 --   definition,  but it can be set using an @as@ clause.
 
-name :: Field -> Maybe ByteString
-name Field{..} = unsafeDupablePerformIO (PQ.fname result column)
+name :: Field -> ByteString
+name Field{..} = case unsafeDupablePerformIO (PQ.fname result column) of
+    Just name -> name
+    Nothing ->
+        -- By not exporting the constructor of Field (except from
+        -- Internal), we ensure that clients cannot create a Field
+        -- that will match this case.
+        throw . PQBindingError . ST.pack $
+                 "Field column number out of range when calling PQ.fname: " <> show column
 
 -- | Returns the name of the object id of the @table@ associated with the
 --   column,  if any.  Returns 'Nothing' when there is no such table;
@@ -492,7 +499,7 @@ ff compatOid hsType parseBS f mstr =
      typnam <- typename f
      left $ errC (B8.unpack typnam)
                  (tableOid f)
-                 (maybe "" B8.unpack (name f))
+                 (B8.unpack (name f))
                  hsType
                  msg
 {-# INLINE ff #-}
@@ -657,7 +664,7 @@ returnError mkErr f msg = do
   typnam <- typename f
   left $ mkErr (B.unpack typnam)
                (tableOid f)
-               (maybe "" B.unpack (name f))
+               (B.unpack (name f))
                (show (typeOf (undefined :: a)))
                msg
 

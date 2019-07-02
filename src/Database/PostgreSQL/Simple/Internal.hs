@@ -115,6 +115,15 @@ data FormatError = FormatError {
 
 instance Exception FormatError
 
+
+-- | Exception thrown if libpq returns an error code that we had
+-- intended to prevent statically.  In other words, a bug in the
+-- bindings.
+newtype PQBindingError = PQBindingError T.Text
+    deriving (Eq, Show, Typeable)
+
+instance Exception PQBindingError
+
 data ConnectInfo = ConnectInfo {
       connectHost :: String
     , connectPort :: Word16
