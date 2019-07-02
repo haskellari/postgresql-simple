@@ -246,14 +246,14 @@ tableOid Field{..} = toMaybeOid (unsafeDupablePerformIO (PQ.ftable result column
 
 -- | If the column has a table associated with it, this returns the
 --   number of the associated table column.  Table columns have
---   nonzero numbers.  Zero is returned if the specified column is not
+--   nonzero numbers.  @Nothing@ is returned if the specified column is not
 --   a simple reference to a table column, or when using pre-3.0
 --   protocol. Analogous to libpq's @PQftablecol@.
 
-tableColumn :: Field -> Int
+tableColumn :: Field -> Maybe Int
 tableColumn Field{..} = fromCol (unsafeDupablePerformIO (PQ.ftablecol result column))
   where
-    fromCol (PQ.Col x) = fromIntegral x
+    fromCol (PQ.Col x) = if x == 0 then Nothing else Just (fromIntegral x)
 
 -- | This returns whether the data was returned in a binary or textual format.
 --   Analogous to libpq's @PQfformat@.
