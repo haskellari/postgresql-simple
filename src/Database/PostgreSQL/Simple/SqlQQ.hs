@@ -35,7 +35,7 @@ import Data.String
 -- >            (beginTime,endTime,string)
 --
 -- This quasiquoter returns a literal string expression of type 'Query',
--- and attempts to mimimize whitespace;  otherwise the above query would
+-- and attempts to minimize whitespace;  otherwise the above query would
 -- consist of approximately half whitespace when sent to the database
 -- backend.  It also recognizes and strips out standard sql comments "--".
 --
