@@ -25,6 +25,7 @@ import           Control.Applicative
 import           Control.Exception
 import           Control.Concurrent.MVar
 import           Control.Monad(MonadPlus(..))
+import qualified Control.Monad.Fail as Fail
 import           Data.ByteString(ByteString)
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as B8
@@ -454,7 +455,7 @@ data Row = Row {
    }
 
 newtype RowParser a = RP { unRP :: ReaderT Row (StateT PQ.Column Conversion) a }
-   deriving ( Functor, Applicative, Alternative, Monad )
+   deriving ( Functor, Applicative, Alternative, Monad, Fail.MonadFail )
 
 liftRowParser :: IO a -> RowParser a
 liftRowParser = RP . lift . lift . liftConversion
@@ -496,6 +497,9 @@ instance Monad Conversion where
 instance MonadPlus Conversion where
    mzero = empty
    mplus = (<|>)
+
+instance Fail.MonadFail Conversion where
+   fail = Conversion . pure . pure . fail
 
 conversionMap :: (Ok a -> Ok b) -> Conversion a -> Conversion b
 conversionMap f m = Conversion $ \conn -> f <$> runConversion m conn
