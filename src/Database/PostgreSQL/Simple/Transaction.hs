@@ -45,12 +45,14 @@ module Database.PostgreSQL.Simple.Transaction
     , isFailedTransactionError
     ) where
 
+import qualified Control.Monad.Catch as Catch
+import           Control.Monad.IO.Class
 import qualified Control.Exception as E
 import qualified Data.ByteString as B
 import Database.PostgreSQL.Simple.Internal
 import Database.PostgreSQL.Simple.Types
 import Database.PostgreSQL.Simple.Errors
-import Database.PostgreSQL.Simple.Compat (mask, (<>))
+import Database.PostgreSQL.Simple.Compat ((<>))
 
 
 -- | Of the four isolation levels defined by the SQL standard,
@@ -110,7 +112,7 @@ defaultReadWriteMode   =  DefaultReadWriteMode
 -- 'rollback', then the exception will be rethrown.
 --
 -- For nesting transactions, see 'withSavepoint'.
-withTransaction :: Connection -> IO a -> IO a
+withTransaction :: (Catch.MonadMask m, MonadIO m) => Connection -> m a -> m a
 withTransaction = withTransactionMode defaultTransactionMode
 
 -- | Execute an action inside of a 'Serializable' transaction.  If a
@@ -123,7 +125,7 @@ withTransaction = withTransactionMode defaultTransactionMode
 -- what might happen between one statement and the next.
 --
 -- Think of it as STM, but without @retry@.
-withTransactionSerializable :: Connection -> IO a -> IO a
+withTransactionSerializable :: (Catch.MonadMask m, MonadIO m) => Connection -> m a -> m a
 withTransactionSerializable =
     withTransactionModeRetry
         TransactionMode
@@ -133,17 +135,17 @@ withTransactionSerializable =
         isSerializationError
 
 -- | Execute an action inside a SQL transaction with a given isolation level.
-withTransactionLevel :: IsolationLevel -> Connection -> IO a -> IO a
+withTransactionLevel :: (Catch.MonadMask m, MonadIO m) => IsolationLevel -> Connection -> m a -> m a
 withTransactionLevel lvl
     = withTransactionMode defaultTransactionMode { isolationLevel = lvl }
 
 -- | Execute an action inside a SQL transaction with a given transaction mode.
-withTransactionMode :: TransactionMode -> Connection -> IO a -> IO a
+withTransactionMode :: (Catch.MonadMask m, MonadIO m) => TransactionMode -> Connection -> m a -> m a
 withTransactionMode mode conn act =
-  mask $ \restore -> do
-    beginMode mode conn
-    r <- restore act `E.onException` rollback_ conn
-    commit conn
+  Catch.mask $ \restore -> do
+    liftIO (beginMode mode conn)
+    r <- restore act `Catch.onException` liftIO (rollback_ conn)
+    liftIO (commit conn)
     return r
 
 -- | Like 'withTransactionMode', but also takes a custom callback to
@@ -153,24 +155,24 @@ withTransactionMode mode conn act =
 -- occurs then the transaction will be rolled back and the exception rethrown.
 --
 -- This is used to implement 'withTransactionSerializable'.
-withTransactionModeRetry :: TransactionMode -> (SqlError -> Bool) -> Connection -> IO a -> IO a
+withTransactionModeRetry :: forall a m. (Catch.MonadThrow m, Catch.MonadMask m, MonadIO m) => TransactionMode -> (SqlError -> Bool) -> Connection -> m a -> m a
 withTransactionModeRetry mode shouldRetry conn act =
-    mask $ \restore ->
-        retryLoop $ E.try $ do
+    Catch.mask $ \restore ->
+        retryLoop $ Catch.try $ do
             a <- restore act
-            commit conn
+            liftIO (commit conn)
             return a
   where
-    retryLoop :: IO (Either E.SomeException a) -> IO a
+    retryLoop :: m (Either E.SomeException a) -> m a
     retryLoop act' = do
-        beginMode mode conn
+        liftIO $ beginMode mode conn
         r <- act'
         case r of
             Left e -> do
-                rollback_ conn
+                liftIO $ rollback_ conn
                 case fmap shouldRetry (E.fromException e) of
                   Just True -> retryLoop act'
-                  _ -> E.throwIO e
+                  _ -> Catch.throwM e
             Right a ->
                 return a
 
@@ -218,15 +220,15 @@ beginMode mode conn = do
 -- \"nested transaction\".
 --
 -- See <https://www.postgresql.org/docs/9.5/static/sql-savepoint.html>
-withSavepoint :: Connection -> IO a -> IO a
+withSavepoint :: (Catch.MonadMask m, MonadIO m) => Connection -> m a -> m a
 withSavepoint conn body =
-  mask $ \restore -> do
-    sp <- newSavepoint conn
-    r <- restore body `E.onException` rollbackToAndReleaseSavepoint conn sp
-    releaseSavepoint conn sp `E.catch` \err ->
+  Catch.mask $ \restore -> do
+    sp <- liftIO $ newSavepoint conn
+    r <- restore body `Catch.onException` liftIO (rollbackToAndReleaseSavepoint conn sp)
+    liftIO (releaseSavepoint conn sp) `Catch.catch` \err ->
         if isFailedTransactionError err
-            then rollbackToAndReleaseSavepoint conn sp
-            else E.throwIO err
+            then liftIO (rollbackToAndReleaseSavepoint conn sp)
+            else Catch.throwM err
     return r
 
 -- | Create a new savepoint.  This may only be used inside of a transaction.
