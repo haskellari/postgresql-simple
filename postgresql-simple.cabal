@@ -1,7 +1,7 @@
 cabal-version:      1.12
 name:               postgresql-simple
 version:            0.6.2
-x-revision:         2
+x-revision:         3
 synopsis:           Mid-Level PostgreSQL client library
 description:
   Mid-Level PostgreSQL client library, forked from mysql-simple.
@@ -41,13 +41,11 @@ library
     Database.PostgreSQL.Simple.Arrays
     Database.PostgreSQL.Simple.Copy
     Database.PostgreSQL.Simple.Cursor
-    Database.PostgreSQL.Simple.Errors
     Database.PostgreSQL.Simple.FromField
     Database.PostgreSQL.Simple.FromRow
+    Database.PostgreSQL.Simple.LargeObjects
     Database.PostgreSQL.Simple.HStore
     Database.PostgreSQL.Simple.HStore.Internal
-    Database.PostgreSQL.Simple.Internal
-    Database.PostgreSQL.Simple.LargeObjects
     Database.PostgreSQL.Simple.Notification
     Database.PostgreSQL.Simple.Ok
     Database.PostgreSQL.Simple.Range
@@ -61,8 +59,11 @@ library
     Database.PostgreSQL.Simple.TypeInfo.Macro
     Database.PostgreSQL.Simple.TypeInfo.Static
     Database.PostgreSQL.Simple.Types
+    Database.PostgreSQL.Simple.Errors
     Database.PostgreSQL.Simple.Vector
     Database.PostgreSQL.Simple.Vector.Unboxed
+
+    Database.PostgreSQL.Simple.Internal
 
   -- Other-modules:
   other-modules:
@@ -76,10 +77,10 @@ library
 
   -- GHC bundled libs
   build-depends:
-      base              >=4.6.0.0  && <4.14
+      base              >=4.6.0.0  && <4.15
     , bytestring        >=0.10.0.0 && <0.11
     , containers        >=0.5.0.0  && <0.7
-    , template-haskell  >=2.8.0.0  && <2.16
+    , template-haskell  >=2.8.0.0  && <2.17
     , text              >=1.2.3.0  && <1.3
     , time              >=1.4.0.1  && <1.10
     , transformers      >=0.3.0.0  && <0.6
@@ -106,11 +107,11 @@ library
     build-depends: ghc-prim
 
   default-extensions:
-    BangPatterns
     DoAndIfThenElse
     OverloadedStrings
-    TypeOperators
+    BangPatterns
     ViewPatterns
+    TypeOperators
 
   ghc-options:        -Wall -fno-warn-name-shadowing
 
@@ -154,9 +155,9 @@ test-suite test
   default-extensions:
     NamedFieldPuns
     OverloadedStrings
-    PatternGuards
     Rank2Types
     RecordWildCards
+    PatternGuards
     ScopedTypeVariables
 
   build-depends:
