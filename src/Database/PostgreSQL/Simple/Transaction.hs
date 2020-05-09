@@ -146,22 +146,26 @@ withTransactionMode mode conn act =
     commit conn
     return r
 
+-- | 'withTransactionModeRetry'' but with the exception type pinned to 'SqlError'.
+withTransactionModeRetry :: forall a. TransactionMode -> (SqlError -> Bool) -> Connection -> IO a -> IO a
+withTransactionModeRetry = withTransactionModeRetry'
+
 -- | Like 'withTransactionMode', but also takes a custom callback to
--- determine if a transaction should be retried if an 'SqlError' occurs.
--- If the callback returns True, then the transaction will be retried.
--- If the callback returns False, or an exception other than an 'SqlError'
+-- determine if a transaction should be retried if an exception occurs.
+-- If the callback returns 'True', then the transaction will be retried.
+-- If the callback returns 'False', or an exception other than an @e@
 -- occurs then the transaction will be rolled back and the exception rethrown.
 --
 -- This is used to implement 'withTransactionSerializable'.
-withTransactionModeRetry :: TransactionMode -> (SqlError -> Bool) -> Connection -> IO a -> IO a
-withTransactionModeRetry mode shouldRetry conn act =
+withTransactionModeRetry' :: forall a e. E.Exception e => TransactionMode -> (e -> Bool) -> Connection -> IO a -> IO a
+withTransactionModeRetry' mode shouldRetry conn act =
     mask $ \restore ->
         retryLoop $ E.try $ do
             a <- restore act `E.onException` rollback_ conn
             commit conn
             return a
   where
-    retryLoop :: IO (Either SqlError a) -> IO a
+    retryLoop :: IO (Either e a) -> IO a
     retryLoop act' = do
         beginMode mode conn
         r <- act'
