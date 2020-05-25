@@ -1,7 +1,7 @@
 cabal-version:      1.12
 name:               postgresql-simple
 version:            0.6.2
-x-revision:         3
+x-revision:         4
 synopsis:           Mid-Level PostgreSQL client library
 description:
   Mid-Level PostgreSQL client library, forked from mysql-simple.
@@ -87,7 +87,7 @@ library
 
   -- Other dependencies
   build-depends:
-      aeson               >=1.4.1.0    && <1.5
+      aeson               >=1.4.1.0    && <1.6
     , attoparsec          >=0.13.2.2   && <0.14
     , bytestring-builder  >=0.10.8.1.0 && <0.11
     , case-insensitive    >=1.2.0.11   && <1.3
