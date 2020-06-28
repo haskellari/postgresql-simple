@@ -106,6 +106,7 @@ module Database.PostgreSQL.Simple.FromField
     , PQ.Oid(..)
     , PQ.Format(..)
     , pgArrayFieldParser
+    , attoFieldParser
 
     , optionalField
     , fromJSONField
@@ -314,11 +315,11 @@ instance FromField Char where
 
 -- | int2
 instance FromField Int16 where
-    fromField = atto ok16 $ signed decimal
+    fromField = attoFieldParser ok16 $ signed decimal
 
 -- | int2, int4
 instance FromField Int32 where
-    fromField = atto ok32 $ signed decimal
+    fromField = attoFieldParser ok32 $ signed decimal
 
 #if WORD_SIZE_IN_BITS < 64
 -- | int2, int4,  and if compiled as 64-bit code,  int8 as well.
@@ -328,36 +329,36 @@ instance FromField Int32 where
 -- This library was compiled as 64-bit code.
 #endif
 instance FromField Int where
-    fromField = atto okInt $ signed decimal
+    fromField = attoFieldParser okInt $ signed decimal
 
 -- | int2, int4, int8
 instance FromField Int64 where
-    fromField = atto ok64 $ signed decimal
+    fromField = attoFieldParser ok64 $ signed decimal
 
 -- | int2, int4, int8
 instance FromField Integer where
-    fromField = atto ok64 $ signed decimal
+    fromField = attoFieldParser ok64 $ signed decimal
 
 -- | int2, float4    (Uses attoparsec's 'double' routine,  for
 --   better accuracy convert to 'Scientific' or 'Rational' first)
 instance FromField Float where
-    fromField = atto ok (realToFrac <$> pg_double)
+    fromField = attoFieldParser ok (realToFrac <$> pg_double)
       where ok = eq TI.float4Oid \/ eq TI.int2Oid
 
 -- | int2, int4, float4, float8  (Uses attoparsec's 'double' routine,  for
 --   better accuracy convert to 'Scientific' or 'Rational' first)
 instance FromField Double where
-    fromField = atto ok pg_double
+    fromField = attoFieldParser ok pg_double
       where ok = eq TI.float4Oid \/ eq TI.float8Oid \/ eq TI.int2Oid \/ eq TI.int4Oid
 
 -- | int2, int4, int8, float4, float8, numeric
 instance FromField (Ratio Integer) where
-    fromField = atto ok pg_rational
+    fromField = attoFieldParser ok pg_rational
       where ok = eq TI.float4Oid \/ eq TI.float8Oid \/ eq TI.int2Oid \/ eq TI.int4Oid \/ eq TI.int8Oid \/  eq TI.numericOid
 
 -- | int2, int4, int8, float4, float8, numeric
 instance FromField Scientific where
-     fromField = atto ok rational
+     fromField = attoFieldParser ok rational
       where ok = eq TI.float4Oid \/ eq TI.float8Oid \/ eq TI.int2Oid \/ eq TI.int4Oid \/ eq TI.int8Oid \/  eq TI.numericOid
 
 unBinary :: Binary t -> t
@@ -385,7 +386,7 @@ instance FromField SB.ByteString where
 
 -- | oid
 instance FromField PQ.Oid where
-    fromField f dat = PQ.Oid <$> atto (== TI.oidOid) decimal f dat
+    fromField f dat = PQ.Oid <$> attoFieldParser (== TI.oidOid) decimal f dat
 
 -- | bytea, name, text, \"char\", bpchar, varchar, unknown
 instance FromField LB.ByteString where
@@ -664,10 +665,22 @@ returnError mkErr f msg = do
                (show (typeOf (undefined :: a)))
                msg
 
-atto :: forall a. (Typeable a)
-     => Compat -> Parser a -> Field -> Maybe ByteString
-     -> Conversion a
-atto types p0 f dat = doFromField f types (go p0) dat
+-- | Construct a field parser from an attoparsec parser. An 'Incompatible' error is thrown if the
+-- PostgreSQL oid does not match the specified predicate.
+--
+-- @
+-- instance FromField Int16 where
+--   fromField = attoFieldParser ok16 (signed decimal)
+-- @
+--
+-- @since 0.6.3
+attoFieldParser :: forall a. (Typeable a)
+     => (PQ.Oid -> Bool)
+     -- ^ Predicate for whether the postgresql type oid is compatible with this parser
+     -> Parser a
+     -- ^ An attoparsec parser.
+     -> FieldParser a
+attoFieldParser types p0 f dat = doFromField f types (go p0) dat
   where
     go :: Parser a -> ByteString -> Conversion a
     go p s =
