@@ -31,7 +31,6 @@ import           Data.ByteString.Builder
                    , wordDec, word8Dec, word16Dec, word32Dec, word64Dec
                    , floatDec, doubleDec
                    )
-import Data.Functor.Const (Const(Const))
 import Data.Functor.Identity (Identity(Identity))
 import Data.Int (Int8, Int16, Int32, Int64)
 import Data.List (intersperse)
@@ -64,6 +63,9 @@ import           Data.Text.Lazy.Builder.Scientific (scientificBuilder)
 import           Data.Scientific (scientificBuilder)
 #endif
 import           Foreign.C.Types (CUInt(..))
+#if MIN_VERSION_base(4,9,0)
+import Data.Functor.Const (Const(Const))
+#endif
 
 -- | How to render an element when substituting it into a query.
 data Action =
@@ -103,9 +105,11 @@ instance ToField Action where
     toField a = a
     {-# INLINE toField #-}
 
+#if MIN_VERSION_base(4,9,0)
 instance (ToField a) => ToField (Const a (b :: k)) where
   toField (Const a) = toField a
   {-# INLINE toField #-}
+#endif
 
 instance (ToField a) => ToField (Identity a) where
   toField (Identity a) = toField a
