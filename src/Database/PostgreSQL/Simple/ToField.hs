@@ -1,6 +1,6 @@
 {-# LANGUAGE CPP, DeriveDataTypeable, DeriveFunctor  #-}
 {-# LANGUAGE FlexibleInstances, TypeSynonymInstances #-}
-{-# LANGUAGE StandaloneDeriving, DerivingStrategies, KindSignatures, PolyKinds, GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE KindSignatures, PolyKinds #-}
 
 ------------------------------------------------------------------------------
 -- |
@@ -32,6 +32,7 @@ import           Data.ByteString.Builder
                    , floatDec, doubleDec
                    )
 import Data.Functor.Const (Const(Const))
+import Data.Functor.Identity (Identity(Identity))
 import Data.Int (Int8, Int16, Int32, Int64)
 import Data.List (intersperse)
 import Data.Monoid (mappend)
@@ -102,7 +103,13 @@ instance ToField Action where
     toField a = a
     {-# INLINE toField #-}
 
-deriving newtype instance (ToField a) => ToField (Const a (b :: k))
+instance (ToField a) => ToField (Const a (b :: k)) where
+  toField (Const a) = toField a
+  {-# INLINE toField #-}
+
+instance (ToField a) => ToField (Identity a) where
+  toField (Identity a) = toField a
+  {-# INLINE toField #-}
 
 instance (ToField a) => ToField (Maybe a) where
     toField Nothing  = renderNull

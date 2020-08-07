@@ -2,7 +2,7 @@
 {-# LANGUAGE FlexibleInstances, TypeSynonymInstances #-}
 {-# LANGUAGE PatternGuards, ScopedTypeVariables      #-}
 {-# LANGUAGE RecordWildCards                         #-}
-{-# LANGUAGE StandaloneDeriving, DerivingStrategies, KindSignatures, PolyKinds, GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE KindSignatures, PolyKinds #-}
 
 {- |
 Module:      Database.PostgreSQL.Simple.FromField
@@ -124,6 +124,7 @@ import           Data.Attoparsec.ByteString.Char8 hiding (Result)
 import           Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as B
 import           Data.Functor.Const (Const(Const))
+import           Data.Functor.Identity (Identity(Identity))
 import           Data.Int (Int16, Int32, Int64)
 import           Data.IORef (IORef, newIORef)
 import           Data.Ratio (Ratio)
@@ -269,7 +270,11 @@ instance FromField () where
      | typeOid f /= TI.voidOid = returnError Incompatible f ""
      | otherwise = pure ()
 
-deriving newtype instance (FromField a) => FromField (Const a (b :: k))
+instance (FromField a) => FromField (Const a (b :: k)) where
+  fromField f bs = Const <$> fromField f bs
+
+instance (FromField a) => FromField (Identity a) where
+  fromField f bs = Identity <$> fromField f bs
 
 -- | For dealing with null values.  Compatible with any postgresql type
 --   compatible with type @a@.  Note that the type is not checked if
