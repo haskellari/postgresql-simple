@@ -2,10 +2,13 @@
 
   * Add `fromFieldJSONByteString`
     Thanks to tomjaguarpaw for the implementation
-    https://github.com/lpsmith/postgresql-simple/pull/222
+    https://github.com/haskellari/postgresql-simple/pull/47
   * Add `attoFieldParser`
     Thanks to Victor Nawothnig for the implementation
     https://github.com/haskellari/postgresql-simple/pull/45
+  * Add `Identity` and `Const` instance
+    Thanks to Cary Robbins for the implementation
+    https://github.com/haskellari/postgresql-simple/pull/46
 
 ### Version 0.6.2 (2019-04-26)
   
