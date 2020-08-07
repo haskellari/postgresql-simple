@@ -23,6 +23,7 @@ module Database.PostgreSQL.Simple.ToField
     , inQuotes
     ) where
 
+import Control.Applicative (Const(Const))
 import qualified Data.Aeson as JSON
 import           Data.ByteString (ByteString)
 import           Data.ByteString.Builder
@@ -31,7 +32,6 @@ import           Data.ByteString.Builder
                    , wordDec, word8Dec, word16Dec, word32Dec, word64Dec
                    , floatDec, doubleDec
                    )
-import Data.Functor.Identity (Identity(Identity))
 import Data.Int (Int8, Int16, Int32, Int64)
 import Data.List (intersperse)
 import Data.Monoid (mappend)
@@ -63,8 +63,14 @@ import           Data.Text.Lazy.Builder.Scientific (scientificBuilder)
 import           Data.Scientific (scientificBuilder)
 #endif
 import           Foreign.C.Types (CUInt(..))
+
+#if MIN_VERSION_base(4,8,0)
+import Data.Functor.Identity (Identity(Identity))
+#endif
+
 #if MIN_VERSION_base(4,9,0)
-import Data.Functor.Const (Const(Const))
+#else
+#define Type *
 #endif
 
 -- | How to render an element when substituting it into a query.
@@ -109,11 +115,17 @@ instance ToField Action where
 instance (ToField a) => ToField (Const a (b :: k)) where
   toField (Const a) = toField a
   {-# INLINE toField #-}
+#else
+instance (ToField a) => ToField (Const a (b :: Type)) where
+  toField (Const a) = toField a
+  {-# INLINE toField #-}
 #endif
 
+#if MIN_VERSION_base(4,8,0)
 instance (ToField a) => ToField (Identity a) where
   toField (Identity a) = toField a
   {-# INLINE toField #-}
+#endif
 
 instance (ToField a) => ToField (Maybe a) where
     toField Nothing  = renderNull
