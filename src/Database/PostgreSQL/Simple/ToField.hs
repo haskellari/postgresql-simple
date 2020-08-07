@@ -32,6 +32,7 @@ import           Data.ByteString.Builder
                    , wordDec, word8Dec, word16Dec, word32Dec, word64Dec
                    , floatDec, doubleDec
                    )
+import Data.Functor.Identity (Identity(Identity))
 import Data.Int (Int8, Int16, Int32, Int64)
 import Data.List (intersperse)
 import Data.Monoid (mappend)
@@ -63,10 +64,6 @@ import           Data.Text.Lazy.Builder.Scientific (scientificBuilder)
 import           Data.Scientific (scientificBuilder)
 #endif
 import           Foreign.C.Types (CUInt(..))
-
-#if MIN_VERSION_base(4,8,0)
-import Data.Functor.Identity (Identity(Identity))
-#endif
 
 #if MIN_VERSION_base(4,9,0)
 #else
@@ -121,11 +118,9 @@ instance (ToField a) => ToField (Const a (b :: Type)) where
   {-# INLINE toField #-}
 #endif
 
-#if MIN_VERSION_base(4,8,0)
 instance (ToField a) => ToField (Identity a) where
   toField (Identity a) = toField a
   {-# INLINE toField #-}
-#endif
 
 instance (ToField a) => ToField (Maybe a) where
     toField Nothing  = renderNull
