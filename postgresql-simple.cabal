@@ -18,8 +18,8 @@ copyright:
 category:           Database
 build-type:         Simple
 extra-source-files:
-  CONTRIBUTORS
   CHANGES.md
+  CONTRIBUTORS
   test/results/malformed-input.expected
   test/results/unique-constraint-violation.expected
 
@@ -31,7 +31,8 @@ tested-with:
    || ==8.2.2
    || ==8.4.4
    || ==8.6.5
-   || ==8.8.1
+   || ==8.8.4
+   || ==8.10.2
 
 library
   default-language:   Haskell2010
@@ -41,11 +42,13 @@ library
     Database.PostgreSQL.Simple.Arrays
     Database.PostgreSQL.Simple.Copy
     Database.PostgreSQL.Simple.Cursor
+    Database.PostgreSQL.Simple.Errors
     Database.PostgreSQL.Simple.FromField
     Database.PostgreSQL.Simple.FromRow
-    Database.PostgreSQL.Simple.LargeObjects
     Database.PostgreSQL.Simple.HStore
     Database.PostgreSQL.Simple.HStore.Internal
+    Database.PostgreSQL.Simple.Internal
+    Database.PostgreSQL.Simple.LargeObjects
     Database.PostgreSQL.Simple.Notification
     Database.PostgreSQL.Simple.Ok
     Database.PostgreSQL.Simple.Range
@@ -59,11 +62,8 @@ library
     Database.PostgreSQL.Simple.TypeInfo.Macro
     Database.PostgreSQL.Simple.TypeInfo.Static
     Database.PostgreSQL.Simple.Types
-    Database.PostgreSQL.Simple.Errors
     Database.PostgreSQL.Simple.Vector
     Database.PostgreSQL.Simple.Vector.Unboxed
-
-    Database.PostgreSQL.Simple.Internal
 
   -- Other-modules:
   other-modules:
@@ -107,11 +107,11 @@ library
     build-depends: ghc-prim
 
   default-extensions:
+    BangPatterns
     DoAndIfThenElse
     OverloadedStrings
-    BangPatterns
-    ViewPatterns
     TypeOperators
+    ViewPatterns
 
   ghc-options:        -Wall -fno-warn-name-shadowing
 
@@ -151,13 +151,14 @@ test-suite test
     Serializable
     Time
 
+  ghc-options:        -threaded
   ghc-options:        -Wall -fno-warn-name-shadowing -fno-warn-unused-do-bind
   default-extensions:
     NamedFieldPuns
     OverloadedStrings
+    PatternGuards
     Rank2Types
     RecordWildCards
-    PatternGuards
     ScopedTypeVariables
 
   build-depends:

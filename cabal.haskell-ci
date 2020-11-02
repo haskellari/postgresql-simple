@@ -3,3 +3,13 @@ postgresql: True
 
 -- services aren't supported on Travis on macOS
 -- osx: 8.4.4
+
+env: 7.6.3:DATABASE_CONNSTRING=travis
+env: 7.8.4:DATABASE_CONNSTRING=travis
+env: 7.10.3:DATABASE_CONNSTRING=travis
+env: 8.0.2:DATABASE_CONNSTRING=travis
+env: 8.2.2:DATABASE_CONNSTRING=travis
+env: 8.4.4:DATABASE_CONNSTRING=travis
+env: 8.6.5:DATABASE_CONNSTRING=travis
+env: 8.8.4:DATABASE_CONNSTRING=travis
+env: 8.10.2:DATABASE_CONNSTRING=travis
