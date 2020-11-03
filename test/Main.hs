@@ -25,6 +25,7 @@ import GHC.Generics (Generic)
 import Data.Aeson
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as B
+import qualified Data.ByteString.Char8 as BS8
 import qualified Data.ByteString.Lazy.Char8 as BL
 import Data.CaseInsensitive (CI)
 import qualified Data.CaseInsensitive as CI
@@ -36,6 +37,7 @@ import qualified Data.Vector as V
 import System.FilePath
 import System.Timeout(timeout)
 import Data.Time(getCurrentTime, diffUTCTime)
+import System.Environment (getEnvironment)
 
 import Test.Tasty
 import Test.Tasty.Golden
@@ -546,18 +548,24 @@ isFormatError i FormatError{..}
 --
 -- Note that some tests, such as Notify, use multiple connections, and assume
 -- that 'testConnect' connects to the same database every time it is called.
-testConnect :: IO Connection
-testConnect = connectPostgreSQL ""
-
-withTestEnv :: (TestEnv -> IO a) -> IO a
-withTestEnv cb =
+withTestEnv :: ByteString -> (TestEnv -> IO a) -> IO a
+withTestEnv connstr cb =
     withConn $ \conn ->
         cb TestEnv
             { conn     = conn
             , withConn = withConn
             }
   where
-    withConn = bracket testConnect close
+    withConn = bracket (connectPostgreSQL connstr) close
 
 main :: IO ()
-main = withTestEnv $ defaultMain . tests
+main = do
+    env <- getEnvironment
+    case lookup "DATABASE_CONNSTRING" env of
+        Nothing -> putStrLn "Set DATABASE_CONNSTRING environment variable"
+        Just s  -> withTestEnv (BS8.pack (special s)) (defaultMain . tests)
+  where
+    -- https://www.appveyor.com/docs/services-databases/
+    special "appveyor" = "dbname='TestDb' user='postgres' password='Password12!'"
+    special "travis"   = ""
+    special s          = s

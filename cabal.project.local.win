@@ -1,0 +1,4 @@
+constraints: these -assoc
+
+package postgresql-libpq
+  flags: -use-pkg-config
