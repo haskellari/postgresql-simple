@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP, DeriveDataTypeable, DeriveFunctor  #-}
 {-# LANGUAGE FlexibleInstances, TypeSynonymInstances #-}
+{-# LANGUAGE PolyKinds #-}
 
 ------------------------------------------------------------------------------
 -- |
@@ -22,6 +23,7 @@ module Database.PostgreSQL.Simple.ToField
     , inQuotes
     ) where
 
+import Control.Applicative (Const(Const))
 import qualified Data.Aeson as JSON
 import           Data.ByteString (ByteString)
 import           Data.ByteString.Builder
@@ -30,6 +32,7 @@ import           Data.ByteString.Builder
                    , wordDec, word8Dec, word16Dec, word32Dec, word64Dec
                    , floatDec, doubleDec
                    )
+import Data.Functor.Identity (Identity(Identity))
 import Data.Int (Int8, Int16, Int32, Int64)
 import Data.List (intersperse)
 import Data.Monoid (mappend)
@@ -99,6 +102,14 @@ class ToField a where
 instance ToField Action where
     toField a = a
     {-# INLINE toField #-}
+
+instance (ToField a) => ToField (Const a b) where
+  toField (Const a) = toField a
+  {-# INLINE toField #-}
+
+instance (ToField a) => ToField (Identity a) where
+  toField (Identity a) = toField a
+  {-# INLINE toField #-}
 
 instance (ToField a) => ToField (Maybe a) where
     toField Nothing  = renderNull
