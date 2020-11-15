@@ -16,6 +16,9 @@
   * Fix spurious aborts when retrying transactions
     Thanks to Elliot Cameron for the implementation
     https://github.com/haskellari/postgresql-simple/pull/34
+  * Add `Database.PostgreSQL.Simple.Newtypes` module
+    with `Aeson` newtype.
+    https://github.com/haskellari/postgresql-simple/pull/55
 
 ### Version 0.6.2 (2019-04-26)
   

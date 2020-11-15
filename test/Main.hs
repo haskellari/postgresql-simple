@@ -3,10 +3,19 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DoAndIfThenElse #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+#if __GLASGOW_HASKELL__ >= 806
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE DeriveAnyClass #-}
+#endif
+module Main (main) where
+
 import Common
 import Database.PostgreSQL.Simple.Copy
+import Database.PostgreSQL.Simple.ToField (ToField)
 import Database.PostgreSQL.Simple.FromField (FromField)
 import Database.PostgreSQL.Simple.HStore
+import Database.PostgreSQL.Simple.Newtypes
 import Database.PostgreSQL.Simple.Internal (breakOnSingleQuestionMark)
 import Database.PostgreSQL.Simple.Types(Query(..),Values(..), PGArray(..))
 import qualified Database.PostgreSQL.Simple.Transaction as ST
@@ -59,6 +68,8 @@ tests env = testGroup "tests"
     , testCase "HStore"               . testHStore
     , testCase "citext"               . testCIText
     , testCase "JSON"                 . testJSON
+    , testCase "Aeson newtype"        . testAeson
+    , testCase "DerivingVia"          . testDerivingVia
     , testCase "Question mark escape" . testQM
     , testCase "Savepoint"            . testSavepoint
     , testCase "Unicode"              . testUnicode
@@ -239,6 +250,40 @@ testJSON TestEnv{..} = do
       let js = Only (toJSON a)
       js' <- query conn "SELECT ?::json" js
       [js] @?= js'
+
+testAeson :: TestEnv -> Assertion
+testAeson TestEnv{..} = do
+    roundTrip (Map.fromList [] :: Map Text Text)
+    roundTrip (Map.fromList [("foo","bar"),("bar","baz"),("baz","hello")] :: Map Text Text)
+    roundTrip (Map.fromList [("fo\"o","bar"),("b\\ar","baz"),("baz","\"value\\with\"escapes")] :: Map Text Text)
+    roundTrip (V.fromList [1,2,3,4,5::Int])
+    roundTrip ("foo" :: Text)
+    roundTrip (42 :: Int)
+  where
+    roundTrip :: (Eq a, Show a, Typeable a, ToJSON a, FromJSON a)=> a -> Assertion
+    roundTrip x = do
+      y <- query conn "SELECT ?::json" (Only (Aeson x))
+      [Only (Aeson x)] @?= y
+
+testDerivingVia :: TestEnv -> Assertion
+testDerivingVia TestEnv{..} = do
+#if __GLASGOW_HASKELL__ <806
+    return ()
+#else
+    roundTrip $ DerivingVia1 42 "Meaning of Life"
+  where
+    roundTrip :: (Eq a, Show a, Typeable a, ToField a, FromField a)=> a -> Assertion
+    roundTrip x = do
+      y <- query conn "SELECT ?::json" (Only x)
+      [Only x] @?= y
+
+data DerivingVia1 = DerivingVia1 Int String
+  deriving stock (Eq, Show, Generic)
+  deriving anyclass (FromJSON, ToJSON)
+  deriving (ToField, FromField) via Aeson DerivingVia1
+
+#endif
+
 
 testQM :: TestEnv -> Assertion
 testQM TestEnv{..} = do

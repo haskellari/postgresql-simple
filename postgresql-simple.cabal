@@ -48,6 +48,7 @@ library
     Database.PostgreSQL.Simple.HStore.Internal
     Database.PostgreSQL.Simple.Internal
     Database.PostgreSQL.Simple.LargeObjects
+    Database.PostgreSQL.Simple.Newtypes
     Database.PostgreSQL.Simple.Notification
     Database.PostgreSQL.Simple.Ok
     Database.PostgreSQL.Simple.Range
