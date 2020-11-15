@@ -1,3 +1,12 @@
+### Version 0.6.3 (2020-11-15)
+
+  * Add `fromFieldJSONByteString`
+    Thanks to tomjaguarpaw for the implementation
+    https://github.com/lpsmith/postgresql-simple/pull/222
+  * Add `attoFieldParser`
+    Thanks to Victor Nawothnig for the implementation
+    https://github.com/haskellari/postgresql-simple/pull/45
+
 ### Version 0.6.2 (2019-04-26)
   
   * Define `MonadFail Ok`.
