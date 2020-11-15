@@ -12,7 +12,7 @@ maintainer:         Oleg Grenrus <oleg.grenrus@iki.fi>
 copyright:
   (c) 2011 MailRank, Inc.
   (c) 2011-2018 Leon P Smith
-  (c) 2018-2019 Oleg Grenrus
+  (c) 2018-2020 Oleg Grenrus
 
 category:           Database
 build-type:         Simple
@@ -117,12 +117,12 @@ library
 
 source-repository head
   type:     git
-  location: http://github.com/phadej/postgresql-simple
+  location: http://github.com/haskellari/postgresql-simple
 
 source-repository this
   type:     git
-  location: http://github.com/phadej/postgresql-simple
-  tag:      v0.6
+  location: http://github.com/haskellari/postgresql-simple
+  tag:      v0.6.3
 
 test-suite inspection
   if !impl(ghc >=8.0)
