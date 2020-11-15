@@ -17,6 +17,7 @@ module Database.PostgreSQL.Simple.Transaction
     , withTransactionLevel
     , withTransactionMode
     , withTransactionModeRetry
+    , withTransactionModeRetry'
     , withTransactionSerializable
     , TransactionMode(..)
     , IsolationLevel(..)
@@ -146,31 +147,34 @@ withTransactionMode mode conn act =
     commit conn
     return r
 
+-- | 'withTransactionModeRetry'' but with the exception type pinned to 'SqlError'.
+withTransactionModeRetry :: TransactionMode -> (SqlError -> Bool) -> Connection -> IO a -> IO a
+withTransactionModeRetry = withTransactionModeRetry'
+
 -- | Like 'withTransactionMode', but also takes a custom callback to
--- determine if a transaction should be retried if an 'SqlError' occurs.
--- If the callback returns True, then the transaction will be retried.
--- If the callback returns False, or an exception other than an 'SqlError'
+-- determine if a transaction should be retried if an exception occurs.
+-- If the callback returns 'True', then the transaction will be retried.
+-- If the callback returns 'False', or an exception other than an @e@
 -- occurs then the transaction will be rolled back and the exception rethrown.
 --
 -- This is used to implement 'withTransactionSerializable'.
-withTransactionModeRetry :: TransactionMode -> (SqlError -> Bool) -> Connection -> IO a -> IO a
-withTransactionModeRetry mode shouldRetry conn act =
+withTransactionModeRetry' :: forall a e. E.Exception e => TransactionMode -> (e -> Bool) -> Connection -> IO a -> IO a
+withTransactionModeRetry' mode shouldRetry conn act =
     mask $ \restore ->
         retryLoop $ E.try $ do
-            a <- restore act
+            a <- restore act `E.onException` rollback_ conn
             commit conn
             return a
   where
-    retryLoop :: IO (Either E.SomeException a) -> IO a
+    retryLoop :: IO (Either e a) -> IO a
     retryLoop act' = do
         beginMode mode conn
         r <- act'
         case r of
-            Left e -> do
-                rollback_ conn
-                case fmap shouldRetry (E.fromException e) of
-                  Just True -> retryLoop act'
-                  _ -> E.throwIO e
+            Left e ->
+                case shouldRetry e of
+                  True -> retryLoop act'
+                  False -> E.throwIO e
             Right a ->
                 return a
 
