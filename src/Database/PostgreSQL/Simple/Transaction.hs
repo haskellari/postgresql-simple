@@ -17,6 +17,7 @@ module Database.PostgreSQL.Simple.Transaction
     , withTransactionLevel
     , withTransactionMode
     , withTransactionModeRetry
+    , withTransactionModeRetry'
     , withTransactionSerializable
     , TransactionMode(..)
     , IsolationLevel(..)
@@ -147,7 +148,7 @@ withTransactionMode mode conn act =
     return r
 
 -- | 'withTransactionModeRetry'' but with the exception type pinned to 'SqlError'.
-withTransactionModeRetry :: forall a. TransactionMode -> (SqlError -> Bool) -> Connection -> IO a -> IO a
+withTransactionModeRetry :: TransactionMode -> (SqlError -> Bool) -> Connection -> IO a -> IO a
 withTransactionModeRetry = withTransactionModeRetry'
 
 -- | Like 'withTransactionMode', but also takes a custom callback to

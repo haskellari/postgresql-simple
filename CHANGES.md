@@ -9,6 +9,13 @@
   * Add `Identity` and `Const` instance
     Thanks to Cary Robbins for the implementation
     https://github.com/haskellari/postgresql-simple/pull/46
+  * Add `withTransactionModeRetry'`, a variant of `withTransactionModeRetry`
+    for all exception types.
+    Thanks to Elliot Cameron for the implementation
+    https://github.com/haskellari/postgresql-simple/pull/42
+  * Fix spurious aborts when retrying transactions
+    Thanks to Elliot Cameron for the implementation
+    https://github.com/haskellari/postgresql-simple/pull/34
 
 ### Version 0.6.2 (2019-04-26)
   
