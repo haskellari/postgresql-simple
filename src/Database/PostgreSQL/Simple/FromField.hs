@@ -561,6 +561,8 @@ instance FromField JSON.Value where
                    Right val -> pure val
 
 -- | Return the JSON ByteString directly
+--
+-- @since 0.6.3
 fromFieldJSONByteString :: Field -> Maybe ByteString -> Conversion ByteString
 fromFieldJSONByteString f mbs =
       if typeOid f /= TI.jsonOid && typeOid f /= TI.jsonbOid

@@ -1,3 +1,7 @@
+### Version 0.6.3 (2020-11-15)
+
+  * Add 'fromFieldJSONByteString`
+
 ### Version 0.6.2 (2019-04-26)
   
   * Define `MonadFail Ok`.
