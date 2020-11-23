@@ -32,6 +32,7 @@ module Database.PostgreSQL.Simple.Copy
     ( copy
     , copy_
     , CopyOutResult(..)
+    , foldCopyData
     , getCopyData
     , putCopyData
     , putCopyEnd
@@ -102,6 +103,30 @@ data CopyOutResult
    | CopyOutDone {-# UNPACK #-} !Int64 -- ^ No more rows, and a count of the
                                        --   number of rows returned.
      deriving (Eq, Typeable, Show)
+
+
+-- | Fold over @COPY TO STDOUT@ query passing each copied row to an accumulator
+--   and calling a post-process at the end. A connection must be in the
+--   @CopyOut@ state in order to call this function.
+--
+--   __Example__
+--
+--   > (acc, count) <- foldCopyData conn
+--   >     (\acc row -> return (row:acc))
+--   >     (\acc count -> return (acc, count))
+--   >     []
+
+foldCopyData
+  :: Connection                   -- ^ Database connection
+  -> (a -> B.ByteString -> IO a)  -- ^ Accumulate one row of the result
+  -> (a -> Int64 -> IO b)         -- ^ Post-process accumulator with a count of rows
+  -> a                            -- ^ Initial accumulator
+  -> IO b                         -- ^ Result
+foldCopyData conn f g !acc = do
+    result <- getCopyData conn
+    case result of
+        CopyOutRow row    -> f acc row >>= foldCopyData conn f g
+        CopyOutDone count -> g acc count
 
 
 -- | Retrieve some data from a @COPY TO STDOUT@ query.   A connection
