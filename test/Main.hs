@@ -442,6 +442,14 @@ testCopy TestEnv{..} = do
     -- so that we can issue more queries:
     [Only (x::Int)] <- query_ conn "SELECT 2 + 2"
     x @?= 4
+    -- foldCopyData
+    copy_ conn "COPY copy_test TO STDOUT (FORMAT CSV)"
+    (acc, count) <- foldCopyData conn
+        (\acc row -> return (row:acc))
+        (\acc count -> return (acc, count))
+        []
+    sort acc @?= sort copyRows
+    count @?= 2
   where
     copyRows  = ["1,foo\n"
                 ,"2,bar\n"]
