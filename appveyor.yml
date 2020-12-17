@@ -9,7 +9,7 @@ services:
 
 environment:
   global:
-    CABOPTS:  "--store-dir=C:\\SR --http-transport=plain-http"
+    CABOPTS:  "--minimize-conflict-set --store-dir=C:\\SR --http-transport=plain-http"
     PGUSER: postgres
     PGPASSWORD: Password12!
     PGPORT: "5432"
