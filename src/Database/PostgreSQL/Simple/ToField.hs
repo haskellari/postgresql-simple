@@ -37,6 +37,7 @@ import Data.Int (Int8, Int16, Int32, Int64)
 import Data.List (intersperse)
 import Data.Monoid (mappend)
 import Data.Time (Day, TimeOfDay, LocalTime, UTCTime, ZonedTime, NominalDiffTime)
+import Data.Time.LocalTime (CalendarDiffTime)
 import Data.Typeable (Typeable)
 import Data.Word (Word, Word8, Word16, Word32, Word64)
 import {-# SOURCE #-} Database.PostgreSQL.Simple.ToRow
@@ -291,6 +292,10 @@ instance ToField Date where
 
 instance ToField NominalDiffTime where
     toField = Plain . inQuotes . nominalDiffTimeToBuilder
+    {-# INLINE toField #-}
+
+instance ToField CalendarDiffTime where
+    toField = Plain . inQuotes . calendarDiffTimeToBuilder
     {-# INLINE toField #-}
 
 instance (ToField a) => ToField (PGArray a) where

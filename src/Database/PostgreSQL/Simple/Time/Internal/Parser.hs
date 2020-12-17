@@ -21,18 +21,22 @@ module Database.PostgreSQL.Simple.Time.Internal.Parser
     , localToUTCTimeOfDayHMS
     , utcTime
     , zonedTime
+    , calendarDiffTime
     ) where
 
 import Control.Applicative ((<$>), (<*>), (<*), (*>))
 import Database.PostgreSQL.Simple.Compat (toPico)
 import Data.Attoparsec.ByteString.Char8 as A
 import Data.Bits ((.&.))
+import Data.ByteString (ByteString)
 import Data.Char (ord)
 import Data.Fixed (Pico)
 import Data.Int (Int64)
 import Data.Maybe (fromMaybe)
 import Data.Time.Calendar (Day, fromGregorianValid, addDays)
 import Data.Time.Clock (UTCTime(..))
+import Data.Time.Format.ISO8601 (iso8601ParseM)
+import Data.Time.LocalTime (CalendarDiffTime)
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Time.LocalTime as Local
 
@@ -193,3 +197,8 @@ zonedTime = Local.ZonedTime <$> localTime <*> (fromMaybe utc <$> timeZone)
 
 utc :: Local.TimeZone
 utc = Local.TimeZone 0 False ""
+
+calendarDiffTime :: Parser CalendarDiffTime
+calendarDiffTime = do
+  contents <- takeByteString
+  iso8601ParseM $ B8.unpack contents

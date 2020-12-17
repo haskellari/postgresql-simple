@@ -19,6 +19,7 @@ import Control.Arrow((***))
 import Control.Applicative
 import qualified Data.ByteString as B
 import Data.Time hiding (getTimeZone, getZonedTime)
+import Data.Time.LocalTime (CalendarDiffTime)
 import Data.Typeable
 import Data.Maybe (fromMaybe)
 import qualified Data.Attoparsec.ByteString.Char8 as A
@@ -77,6 +78,9 @@ parseLocalTimestamp = A.parseOnly (getLocalTimestamp <* A.endOfInput)
 parseDate :: B.ByteString -> Either String Date
 parseDate = A.parseOnly (getDate <* A.endOfInput)
 
+parseCalendarDiffTime :: B.ByteString -> Either String CalendarDiffTime
+parseCalendarDiffTime = A.parseOnly (getCalendarDiffTime <* A.endOfInput)
+
 getUnbounded :: A.Parser a -> A.Parser (Unbounded a)
 getUnbounded getFinite
     =     (pure NegInfinity <* A.string "-infinity")
@@ -125,6 +129,9 @@ getUTCTime = TP.utcTime
 getUTCTimestamp :: A.Parser UTCTimestamp
 getUTCTimestamp = getUnbounded getUTCTime
 
+getCalendarDiffTime :: A.Parser CalendarDiffTime
+getCalendarDiffTime = TP.calendarDiffTime
+
 dayToBuilder :: Day -> Builder
 dayToBuilder = primBounded TPP.day
 
@@ -164,3 +171,6 @@ dateToBuilder  = unboundedToBuilder dayToBuilder
 
 nominalDiffTimeToBuilder :: NominalDiffTime -> Builder
 nominalDiffTimeToBuilder = TPP.nominalDiffTime
+
+calendarDiffTimeToBuilder :: CalendarDiffTime -> Builder
+calendarDiffTimeToBuilder = TPP.calendarDiffTime
