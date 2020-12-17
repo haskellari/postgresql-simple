@@ -150,6 +150,7 @@ test-suite test
     Notify
     Serializable
     Time
+    Interval
 
   ghc-options:        -threaded
   ghc-options:        -Wall -fno-warn-name-shadowing -fno-warn-unused-do-bind

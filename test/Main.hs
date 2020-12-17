@@ -53,6 +53,7 @@ import Test.Tasty.Golden
 import Notify
 import Serializable
 import Time
+import Interval
 
 tests :: TestEnv -> TestTree
 tests env = testGroup "tests"
@@ -63,6 +64,7 @@ tests env = testGroup "tests"
     , testCase "Notify"               . testNotify
     , testCase "Serializable"         . testSerializable
     , testCase "Time"                 . testTime
+    , testCase "Interval"             . testInterval
     , testCase "Array"                . testArray
     , testCase "Array of nullables"   . testNullableArray
     , testCase "HStore"               . testHStore
