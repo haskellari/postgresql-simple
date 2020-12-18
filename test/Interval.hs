@@ -166,7 +166,7 @@ checkRoundTrip TestEnv{..} IntervalTestCase{..} = do
       RETURNING id, sample
     |] (Only input)
 
-  assertBool ("CalendarDiffTime did not round-trip from Haskell to SQL and back (" <> label <> ")") $
+  assertBool ("CalendarDiffTime did not round-trip from Haskell to SQL and back (" ++ label ++ ")") $
       output == input
 
   [(Only isExpectedIso)] <- query conn [sql|
@@ -175,6 +175,6 @@ checkRoundTrip TestEnv{..} IntervalTestCase{..} = do
       WHERE id = ?
     |] (asText, returnedId)
 
-  assertBool ("CalendarDiffTime inserted did not match ISO8601 equivalent \"" <> asText <> "\". (" <> label <> ")")
+  assertBool ("CalendarDiffTime inserted did not match ISO8601 equivalent \"" ++ asText ++ "\". (" ++ label ++ ")")
     isExpectedIso
 
