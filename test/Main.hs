@@ -24,6 +24,7 @@ import Control.Applicative
 import Control.Exception as E
 import Control.Monad
 import Data.Char
+import Data.Foldable (toList)
 import Data.List (concat, sort)
 import Data.IORef
 import Data.Monoid ((<>))
@@ -612,13 +613,27 @@ withTestEnv connstr cb =
     withConn = bracket (connectPostgreSQL connstr) close
 
 main :: IO ()
-main = do
+main = withConnstring $ \connstring -> do
+    withTestEnv connstring (defaultMain . tests)
+
+withConnstring :: (BS8.ByteString -> IO ()) -> IO ()
+withConnstring kont = do
     env <- getEnvironment
     case lookup "DATABASE_CONNSTRING" env of
-        Nothing -> putStrLn "Set DATABASE_CONNSTRING environment variable"
-        Just s  -> withTestEnv (BS8.pack (special s)) (defaultMain . tests)
-  where
+        Just s  -> kont (BS8.pack (special s))
+        Nothing -> case lookup "GITHUB_ACTIONS" env of
+            Just "true" -> kont (BS8.pack gha)
+            _           -> putStrLn "Set DATABASE_CONNSTRING environment variable"
+   where
     -- https://www.appveyor.com/docs/services-databases/
     special "appveyor" = "dbname='TestDb' user='postgres' password='Password12!'"
     special "travis"   = ""
     special s          = s
+
+    gha = unwords
+        [ "dbname='postgres'"
+        , "user='postgres'"
+        , "password='postgres'"
+        , "host='postgres'"
+        , "port=5432"
+        ]
