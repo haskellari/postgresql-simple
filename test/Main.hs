@@ -46,7 +46,7 @@ import qualified Data.Text.Encoding as T
 import qualified Data.Vector as V
 import System.FilePath
 import System.Timeout(timeout)
-import Data.Time(getCurrentTime, diffUTCTime)
+import Data.Time.Compat (getCurrentTime, diffUTCTime)
 import System.Environment (getEnvironment)
 
 import Test.Tasty

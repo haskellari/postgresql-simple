@@ -18,8 +18,8 @@ import Data.ByteString.Builder.Prim(primBounded)
 import Control.Arrow((***))
 import Control.Applicative
 import qualified Data.ByteString as B
-import Data.Time hiding (getTimeZone, getZonedTime)
-import Data.Time.LocalTime (CalendarDiffTime)
+import Data.Time.Compat (LocalTime, UTCTime, ZonedTime, Day, TimeOfDay, TimeZone, NominalDiffTime, utc)
+import Data.Time.LocalTime.Compat (CalendarDiffTime)
 import Data.Typeable
 import Data.Maybe (fromMaybe)
 import qualified Data.Attoparsec.ByteString.Char8 as A

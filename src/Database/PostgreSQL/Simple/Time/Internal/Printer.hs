@@ -28,12 +28,12 @@ import Data.ByteString.Builder.Prim
 import Data.Char ( chr )
 import Data.Int ( Int32, Int64 )
 import Data.String (fromString)
-import Data.Time
+import Data.Time.Compat
     ( UTCTime(..), ZonedTime(..), LocalTime(..), NominalDiffTime
     , Day, toGregorian, TimeOfDay(..), timeToTimeOfDay
     , TimeZone, timeZoneMinutes )
-import Data.Time.Format.ISO8601 (iso8601Show)
-import Data.Time.LocalTime (CalendarDiffTime)
+import Data.Time.Format.ISO8601.Compat (iso8601Show)
+import Data.Time.LocalTime.Compat (CalendarDiffTime)
 import Database.PostgreSQL.Simple.Compat ((<>), fromPico)
 import Unsafe.Coerce (unsafeCoerce)
 

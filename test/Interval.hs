@@ -36,9 +36,8 @@ module Interval (testInterval) where
 
 import Common
 import Control.Monad(forM_, replicateM_)
-import Data.Time
-import Data.Time.LocalTime (CalendarDiffTime(..))
-import Data.Time.LocalTime (CalendarDiffTime(..))
+import Data.Time.Compat
+import Data.Time.LocalTime.Compat (CalendarDiffTime(..))
 import Data.ByteString(ByteString)
 import Database.PostgreSQL.Simple.SqlQQ
 

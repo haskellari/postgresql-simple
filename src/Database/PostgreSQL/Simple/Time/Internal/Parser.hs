@@ -33,12 +33,12 @@ import Data.Char (ord)
 import Data.Fixed (Pico)
 import Data.Int (Int64)
 import Data.Maybe (fromMaybe)
-import Data.Time.Calendar (Day, fromGregorianValid, addDays)
-import Data.Time.Clock (UTCTime(..))
-import Data.Time.Format.ISO8601 (iso8601ParseM)
-import Data.Time.LocalTime (CalendarDiffTime)
+import Data.Time.Calendar.Compat (Day, fromGregorianValid, addDays)
+import Data.Time.Clock.Compat (UTCTime(..))
+import Data.Time.Format.ISO8601.Compat (iso8601ParseM)
+import Data.Time.LocalTime.Compat (CalendarDiffTime)
 import qualified Data.ByteString.Char8 as B8
-import qualified Data.Time.LocalTime as Local
+import qualified Data.Time.LocalTime.Compat as Local
 
 -- | Parse a date of the form @YYYY-MM-DD@.
 day :: Parser Day
