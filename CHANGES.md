@@ -1,3 +1,13 @@
+### Version 0.6.4 (2021-01-06)
+
+  * Add foldCopyData helper function
+    Thanks to Sebastián Estrella for the implementation
+    https://github.com/haskellari/postgresql-simple/pull/56
+  * Implement support for postgresql 'interval' type
+    Thanks to Andre Marques Lee for the implementation
+    https://github.com/haskellari/postgresql-simple/pull/60
+  * Depend on `time-compat` to provide uniform `time` related interface.
+
 ### Version 0.6.3 (2020-11-15)
 
   * Add `fromFieldJSONByteString`
