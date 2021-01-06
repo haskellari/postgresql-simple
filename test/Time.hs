@@ -36,7 +36,7 @@ module Time (testTime) where
 
 import Common
 import Control.Monad(forM_, replicateM_)
-import Data.Time
+import Data.Time.Compat
 import Data.ByteString(ByteString)
 import Database.PostgreSQL.Simple.SqlQQ
 

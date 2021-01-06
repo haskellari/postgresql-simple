@@ -38,7 +38,7 @@ import           Data.Monoid                          (mempty)
 import           Data.Scientific                      (Scientific)
 import qualified Data.Text.Lazy.Builder               as LT
 import qualified Data.Text.Lazy.Encoding              as LT
-import           Data.Time                            (Day, LocalTime,
+import           Data.Time.Compat                     (Day, LocalTime,
                                                        NominalDiffTime,
                                                        TimeOfDay, UTCTime,
                                                        ZonedTime,

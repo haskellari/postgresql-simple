@@ -227,6 +227,7 @@ module Database.PostgreSQL.Simple.Time
      , parseUTCTimestamp
      , parseZonedTimestamp
      , parseLocalTimestamp
+     , parseCalendarDiffTime
      , dayToBuilder
      , utcTimeToBuilder
      , zonedTimeToBuilder
@@ -239,6 +240,7 @@ module Database.PostgreSQL.Simple.Time
      , localTimestampToBuilder
      , unboundedToBuilder
      , nominalDiffTimeToBuilder
+     , calendarDiffTimeToBuilder
      ) where
 
 import Database.PostgreSQL.Simple.Time.Implementation

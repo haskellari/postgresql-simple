@@ -17,19 +17,23 @@ module Database.PostgreSQL.Simple.Time.Internal.Printer
     , localTime
     , zonedTime
     , nominalDiffTime
+    , calendarDiffTime
     ) where
 
 import Control.Arrow ((>>>))
-import Data.ByteString.Builder (Builder, integerDec)
+import Data.ByteString.Builder (Builder, byteString, integerDec)
 import Data.ByteString.Builder.Prim
     ( liftFixedToBounded, (>$<), (>*<)
     , BoundedPrim, primBounded, condB, emptyB, FixedPrim, char8, int32Dec)
 import Data.Char ( chr )
 import Data.Int ( Int32, Int64 )
-import Data.Time
+import Data.String (fromString)
+import Data.Time.Compat
     ( UTCTime(..), ZonedTime(..), LocalTime(..), NominalDiffTime
     , Day, toGregorian, TimeOfDay(..), timeToTimeOfDay
     , TimeZone, timeZoneMinutes )
+import Data.Time.Format.ISO8601.Compat (iso8601Show)
+import Data.Time.LocalTime.Compat (CalendarDiffTime)
 import Database.PostgreSQL.Simple.Compat ((<>), fromPico)
 import Unsafe.Coerce (unsafeCoerce)
 
@@ -121,3 +125,11 @@ nominalDiffTime :: NominalDiffTime -> Builder
 nominalDiffTime xy = integerDec x <> primBounded frac (abs (fromIntegral y))
   where
     (x,y) = fromPico (unsafeCoerce xy) `quotRem` 1000000000000
+
+calendarDiffTime :: CalendarDiffTime -> Builder
+calendarDiffTime = byteString
+  . fromString
+    -- from the docs: "Beware: fromString truncates multi-byte characters to octets".
+    -- However, I think this is a safe usage, because ISO8601-encoding seems restricted
+    -- to ASCII output.
+  . iso8601Show

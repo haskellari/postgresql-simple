@@ -129,7 +129,7 @@ import           Data.Functor.Identity (Identity(Identity))
 import           Data.Int (Int16, Int32, Int64)
 import           Data.IORef (IORef, newIORef)
 import           Data.Ratio (Ratio)
-import           Data.Time ( UTCTime, ZonedTime, LocalTime, Day, TimeOfDay )
+import           Data.Time.Compat ( UTCTime, ZonedTime, LocalTime, Day, TimeOfDay, CalendarDiffTime )
 import           Data.Typeable (Typeable, typeOf)
 import           Data.Vector (Vector)
 import           Data.Vector.Mutable (IOVector)
@@ -486,6 +486,15 @@ instance FromField LocalTimestamp where
 -- | date
 instance FromField Date where
   fromField = ff TI.dateOid "Date" parseDate
+
+-- | interval. Requires you to configure intervalstyle as @iso_8601@.
+--
+--   You can configure intervalstyle on every connection with a @SET@ command,
+--   but for better performance you may want to configure it permanently in the
+--   file found with @SHOW config_file;@ .
+--
+instance FromField CalendarDiffTime where
+  fromField = ff TI.intervalOid "CalendarDiffTime" parseCalendarDiffTime
 
 ff :: PQ.Oid -> String -> (B8.ByteString -> Either String a)
    -> Field -> Maybe B8.ByteString -> Conversion a

@@ -46,7 +46,7 @@ import qualified Data.Text.Encoding as T
 import qualified Data.Vector as V
 import System.FilePath
 import System.Timeout(timeout)
-import Data.Time(getCurrentTime, diffUTCTime)
+import Data.Time.Compat (getCurrentTime, diffUTCTime)
 import System.Environment (getEnvironment)
 
 import Test.Tasty
@@ -54,6 +54,7 @@ import Test.Tasty.Golden
 import Notify
 import Serializable
 import Time
+import Interval
 
 tests :: TestEnv -> TestTree
 tests env = testGroup "tests"
@@ -64,6 +65,7 @@ tests env = testGroup "tests"
     , testCase "Notify"               . testNotify
     , testCase "Serializable"         . testSerializable
     , testCase "Time"                 . testTime
+    , testCase "Interval"             . testInterval
     , testCase "Array"                . testArray
     , testCase "Array of nullables"   . testNullableArray
     , testCase "HStore"               . testHStore
@@ -604,7 +606,11 @@ isFormatError i FormatError{..}
 -- that 'testConnect' connects to the same database every time it is called.
 withTestEnv :: ByteString -> (TestEnv -> IO a) -> IO a
 withTestEnv connstr cb =
-    withConn $ \conn ->
+    withConn $ \conn -> do
+        -- currently required for interval to work.
+        -- we also test that this doesn't interfere with anything else
+        execute_ conn "SET intervalstyle TO 'iso_8601'"
+
         cb TestEnv
             { conn     = conn
             , withConn = withConn
