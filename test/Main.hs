@@ -606,7 +606,11 @@ isFormatError i FormatError{..}
 -- that 'testConnect' connects to the same database every time it is called.
 withTestEnv :: ByteString -> (TestEnv -> IO a) -> IO a
 withTestEnv connstr cb =
-    withConn $ \conn ->
+    withConn $ \conn -> do
+        -- currently required for interval to work.
+        -- we also test that this doesn't interfere with anything else
+        execute_ conn "SET intervalstyle TO 'iso_8601'"
+
         cb TestEnv
             { conn     = conn
             , withConn = withConn

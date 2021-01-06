@@ -54,9 +54,6 @@ testInterval env@TestEnv{..} = do
 
   initializeTable env
 
-  -- currently required for interval to work
-  execute_ conn "SET intervalstyle TO 'iso_8601'"
-
   let milliseconds = 0.001
       seconds = 1
       minutes = 60 * seconds
