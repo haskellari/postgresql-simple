@@ -36,6 +36,8 @@ import           Control.Monad.Trans.Reader
 import           Control.Monad.Trans.Class
 import           Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as B
+import           Data.List.NonEmpty (NonEmpty)
+import qualified Data.List.NonEmpty as NE
 import           Data.Vector (Vector)
 import qualified Data.Vector as V
 import           Database.PostgreSQL.Simple.Types (Only(..))
@@ -449,6 +451,11 @@ instance FromField a => FromRow [a] where
     fromRow = do
       n <- numFieldsRemaining
       replicateM n field
+
+instance (FromField a) => FromRow (NonEmpty a) where
+    fromRow = do
+      n <- numFieldsRemaining
+      NE.fromList <$> replicateM n field
 
 instance FromField a => FromRow (Maybe [a]) where
     fromRow = do

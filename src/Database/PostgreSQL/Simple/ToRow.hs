@@ -21,6 +21,9 @@ module Database.PostgreSQL.Simple.ToRow
       ToRow(..)
     ) where
 
+import Data.List.NonEmpty (NonEmpty)
+import qualified Data.List.NonEmpty as NE
+
 import Database.PostgreSQL.Simple.ToField (Action(..), ToField(..))
 import Database.PostgreSQL.Simple.Types (Only(..), (:.)(..))
 import GHC.Generics
@@ -197,6 +200,9 @@ instance (ToField a, ToField b, ToField c, ToField d, ToField e, ToField f,
 
 instance (ToField a) => ToRow [a] where
     toRow = map toField
+
+instance (ToField a) => ToRow (NonEmpty a) where
+    toRow = map toField . NE.toList
 
 instance (ToRow a, ToRow b) => ToRow (a :. b) where
     toRow (a :. b) = toRow a ++ toRow b
