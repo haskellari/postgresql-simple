@@ -1,6 +1,7 @@
 {-# LANGUAGE  CPP, BangPatterns, DoAndIfThenElse, RecordWildCards  #-}
 {-# LANGUAGE  DeriveDataTypeable, DeriveGeneric                    #-}
 {-# LANGUAGE  GeneralizedNewtypeDeriving                           #-}
+{-# LANGUAGE  ScopedTypeVariables                                  #-}
 
 ------------------------------------------------------------------------------
 -- |
@@ -24,7 +25,7 @@ module Database.PostgreSQL.Simple.Internal where
 import           Control.Applicative
 import           Control.Exception
 import           Control.Concurrent.MVar
-import           Control.Monad(MonadPlus(..))
+import           Control.Monad(MonadPlus(..), when)
 import           Data.ByteString(ByteString)
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as B8
@@ -329,40 +330,70 @@ exec conn sql =
     withConnection conn $ \h -> do
         success <- PQ.sendQuery h sql
         if success
-        then awaitResult h Nothing
+        then do
+          mfd <- PQ.socket h
+          case mfd of
+            Nothing -> throwIO $! fdError "Database.PostgreSQL.Simple.Internal.exec"
+            Just socket ->
+              -- Here we assume any exceptions are asynchronous, or that
+              -- they are not from libpq, or that if they come from libpq,
+              -- they don't do any of the internal libpq state "cleaning"
+              -- that is necessary.
+              (consumeUntilNotBusy h socket >> getResult h Nothing)
+                `catch` \(e :: SomeException) -> do
+                  cancelAndClear h socket
+                  throw e
         else throwLibPQError h "PQsendQuery failed"
   where
-    awaitResult h mres = do
-        mfd <- PQ.socket h
-        case mfd of
-          Nothing -> throwIO $! fdError "Database.PostgreSQL.Simple.Internal.exec"
-          Just fd -> do
-             threadWaitRead fd
-             _ <- PQ.consumeInput h  -- FIXME?
-             getResult h mres
+    cancelAndClear h socket = do
+      mcncl <- PQ.getCancel h
+      case mcncl of
+        Nothing -> pure ()
+        Just cncl -> do
+          cancelStatus <- PQ.cancel cncl
+          case cancelStatus of
+            Left _ -> PQ.errorMessage h >>= \mmsg -> throwLibPQError h ("Database.PostgreSQL.Simple.Internal.cancelAndClear: " <> fromMaybe "Unknown error" mmsg)
+            Right () -> do
+              consumeUntilNotBusy h socket
+              waitForNullResult h
+
+    waitForNullResult h = do
+      mres <- PQ.getResult h
+      case mres of
+        Nothing -> pure ()
+        Just _ -> waitForNullResult h
+
+    -- | Waits until results are ready to be fetched.
+    consumeUntilNotBusy h socket = do
+      -- According to https://www.postgresql.org/docs/9.6/libpq-async.html:
+      -- 1. The isBusy status only changes by calling PQConsumeInput
+      -- 2. In case of errors, "PQgetResult should be called until it returns a null pointer, to allow libpq to process the error information completely"
+      -- 3. Also, "A typical application using these functions will have a main loop that uses select() or poll() ... When the main loop detects input ready, it should call PQconsumeInput to read the input. It can then call PQisBusy, followed by PQgetResult if PQisBusy returns false (0)"
+      busy <- PQ.isBusy h
+      when busy $ do
+        threadWaitRead socket
+        someError <- not <$> PQ.consumeInput h
+        when someError $ PQ.errorMessage h >>= \mmsg -> throwLibPQError h ("Database.PostgreSQL.Simple.Internal.consumeUntilNotBusy: " <> fromMaybe "Unknown error" mmsg)
+        consumeUntilNotBusy h socket
 
     getResult h mres = do
-        isBusy <- PQ.isBusy h
-        if isBusy
-        then awaitResult h mres
-        else do
-          mres' <- PQ.getResult h
-          case mres' of
-            Nothing -> case mres of
-                         Nothing  -> throwLibPQError h "PQgetResult returned no results"
-                         Just res -> return res
-            Just res -> do
-                status <- PQ.resultStatus res
-                case status of
-                   -- FIXME: handle PQ.CopyBoth and PQ.SingleTuple
-                   PQ.EmptyQuery    -> getResult h mres'
-                   PQ.CommandOk     -> getResult h mres'
-                   PQ.TuplesOk      -> getResult h mres'
-                   PQ.CopyOut       -> return res
-                   PQ.CopyIn        -> return res
-                   PQ.BadResponse   -> getResult h mres'
-                   PQ.NonfatalError -> getResult h mres'
-                   PQ.FatalError    -> getResult h mres'
+        mres' <- PQ.getResult h
+        case mres' of
+          Nothing -> case mres of
+                        Nothing  -> throwLibPQError h "PQgetResult returned no results"
+                        Just res -> return res
+          Just res -> do
+              status <- PQ.resultStatus res
+              case status of
+                  -- FIXME: handle PQ.CopyBoth and PQ.SingleTuple
+                  PQ.EmptyQuery    -> getResult h mres'
+                  PQ.CommandOk     -> getResult h mres'
+                  PQ.TuplesOk      -> getResult h mres'
+                  PQ.CopyOut       -> return res
+                  PQ.CopyIn        -> return res
+                  PQ.BadResponse   -> getResult h mres'
+                  PQ.NonfatalError -> getResult h mres'
+                  PQ.FatalError    -> getResult h mres'
 #endif
 
 -- | A version of 'execute' that does not perform query substitution.

@@ -84,6 +84,7 @@ tests env = testGroup "tests"
     , testCase "2-ary generic"        . testGeneric2
     , testCase "3-ary generic"        . testGeneric3
     , testCase "Timeout"              . testTimeout
+    , testCase "Async exceptions"     . testAsyncExceptionFailure
     ]
 
 testBytea :: TestEnv -> TestTree
@@ -533,6 +534,18 @@ testDouble TestEnv{..} = do
     [Only (x :: Double)] <- query_ conn "SELECT '-Infinity'::float8"
     x @?= (-1 / 0)
 
+-- | Ensures that asynchronous excepions thrown while queries are executing
+-- are handled properly.
+testAsyncExceptionFailure :: TestEnv -> Assertion
+testAsyncExceptionFailure TestEnv{..} = withConn $ \c -> do
+  -- We need to give it enough time to start executing the query
+  -- before timing out. One second should be more than enough
+  execute_ c "SET my.setting TO '42'"
+  tmt <- timeout (1000 * 1000) (execute_ c "SELECT pg_sleep(60)")
+  tmt @?= Nothing
+  -- Any other query should work now without errors.
+  number42 <- query_ c "SELECT current_setting('my.setting')"
+  number42 @?= [ Only ("42" :: String) ]
 
 testGeneric1 :: TestEnv -> Assertion
 testGeneric1 TestEnv{..} = do
