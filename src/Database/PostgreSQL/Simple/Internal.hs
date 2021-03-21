@@ -340,9 +340,7 @@ exec conn sql =
               -- they don't do any of the internal libpq state "cleaning"
               -- that is necessary.
               (consumeUntilNotBusy h socket >> getResult h Nothing)
-                `catch` \(e :: SomeException) -> do
-                  cancelAndClear h socket
-                  throw e
+                `onException` cancelAndClear h socket
         else throwLibPQError h "PQsendQuery failed"
   where
     cancelAndClear h socket = do
@@ -365,7 +363,7 @@ exec conn sql =
 
     -- | Waits until results are ready to be fetched.
     consumeUntilNotBusy h socket = do
-      -- According to https://www.postgresql.org/docs/9.6/libpq-async.html:
+      -- According to https://www.postgresql.org/docs/current/libpq-async.html :
       -- 1. The isBusy status only changes by calling PQConsumeInput
       -- 2. In case of errors, "PQgetResult should be called until it returns a null pointer, to allow libpq to process the error information completely"
       -- 3. Also, "A typical application using these functions will have a main loop that uses select() or poll() ... When the main loop detects input ready, it should call PQconsumeInput to read the input. It can then call PQisBusy, followed by PQgetResult if PQisBusy returns false (0)"
