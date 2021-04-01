@@ -339,8 +339,9 @@ exec conn sql =
               -- they are not from libpq, or that if they come from libpq,
               -- they don't do any of the internal libpq state "cleaning"
               -- that is necessary.
-              (consumeUntilNotBusy h socket >> getResult h Nothing)
-                `onException` cancelAndClear h socket
+              uninterruptibleMask $ \restore ->
+                restore (consumeUntilNotBusy h socket >> getResult h Nothing)
+                  `onException` cancelAndClear h socket
         else throwLibPQError h "PQsendQuery failed"
   where
     cancelAndClear h socket = do
