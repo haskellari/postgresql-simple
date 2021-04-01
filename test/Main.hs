@@ -7,7 +7,6 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE TypeApplications #-}
 #endif
 module Main (main) where
 
@@ -564,10 +563,10 @@ testSyncExceptionFailure TestEnv{..} = do
       threadDelay (1000 * 1000)
       cancelResult <- query c2 "SELECT pg_cancel_backend(?)" (Only c1Pid)
       cancelResult @?= [ Only True ]
-      killedQuery <- try @SqlError $ wait pgSleep
+      killedQuery <- try $ wait pgSleep
       assertBool "Query was canceled" $ case killedQuery of
         Right _ -> False
-        Left ex -> sqlState ex == "57014"
+        Left (ex :: SqlError) -> sqlState ex == "57014"
     
     -- Any other query should work now without errors.
     number42 <- query_ c1 "SELECT current_setting('my.setting')"
