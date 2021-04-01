@@ -7,6 +7,7 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE TypeApplications #-}
 #endif
 module Main (main) where
 
@@ -21,6 +22,8 @@ import Database.PostgreSQL.Simple.Types(Query(..),Values(..), PGArray(..))
 import qualified Database.PostgreSQL.Simple.Transaction as ST
 
 import Control.Applicative
+import Control.Concurrent (threadDelay)
+import Control.Concurrent.Async (withAsync, wait)
 import Control.Exception as E
 import Control.Monad
 import Data.Char
@@ -85,6 +88,7 @@ tests env = testGroup "tests"
     , testCase "3-ary generic"        . testGeneric3
     , testCase "Timeout"              . testTimeout
     , testCase "Async exceptions"     . testAsyncExceptionFailure
+    , testCase "Sync exceptions"     . testSyncExceptionFailure
     ]
 
 testBytea :: TestEnv -> TestTree
@@ -534,7 +538,7 @@ testDouble TestEnv{..} = do
     [Only (x :: Double)] <- query_ conn "SELECT '-Infinity'::float8"
     x @?= (-1 / 0)
 
--- | Ensures that asynchronous excepions thrown while queries are executing
+-- | Ensures that asynchronous exceptions thrown while queries are executing
 -- are handled properly.
 testAsyncExceptionFailure :: TestEnv -> Assertion
 testAsyncExceptionFailure TestEnv{..} = withConn $ \c -> do
@@ -546,6 +550,28 @@ testAsyncExceptionFailure TestEnv{..} = withConn $ \c -> do
   -- Any other query should work now without errors.
   number42 <- query_ c "SELECT current_setting('my.setting')"
   number42 @?= [ Only ("42" :: String) ]
+
+-- | Ensures that synchronous exceptions thrown while queries are executing
+-- are handled properly.
+testSyncExceptionFailure :: TestEnv -> Assertion
+testSyncExceptionFailure TestEnv{..} = do
+  withConn $ \c1 -> withConn $ \c2 -> do
+    [ Only (c1Pid :: Int) ] <- query_ c1 "SELECT pg_backend_pid()"
+    execute_ c1 "SET my.setting TO '42'"
+    withAsync (execute_ c1 "SELECT pg_sleep(60)") $ \pgSleep -> do
+      -- We need to give it enough time to start executing the query
+      -- before canceling it. One second should be more than enough
+      threadDelay (1000 * 1000)
+      cancelResult <- query c2 "SELECT pg_cancel_backend(?)" (Only c1Pid)
+      cancelResult @?= [ Only True ]
+      killedQuery <- try @SqlError $ wait pgSleep
+      assertBool "Query was canceled" $ case killedQuery of
+        Right _ -> False
+        Left ex -> sqlState ex == "57014"
+    
+    -- Any other query should work now without errors.
+    number42 <- query_ c1 "SELECT current_setting('my.setting')"
+    number42 @?= [ Only ("42" :: String) ]
 
 testGeneric1 :: TestEnv -> Assertion
 testGeneric1 TestEnv{..} = do
