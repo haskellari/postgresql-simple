@@ -78,7 +78,7 @@ foldForwardWithParser (Cursor name conn) parser chunkSize f a0 = do
               Right <$> foldM' inner a0 0 (nrows - 1)
           else
             return $ Left a0
-      _   -> throwResultError "foldForwardWithParser" result status
+      _   -> throwResultError "foldForwardWithParser" conn result status
 
 -- | Fold over a chunk of rows, calling the supplied fold-like function
 -- on each row as it is received. In case the cursor is exhausted,

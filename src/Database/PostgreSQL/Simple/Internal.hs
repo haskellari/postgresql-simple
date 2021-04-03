@@ -336,9 +336,10 @@ exec conn sql =
             Nothing -> throwIO $! fdError "Database.PostgreSQL.Simple.Internal.exec"
             Just socket ->
               -- Here we assume any exceptions are asynchronous, or that
-              -- they are not from libpq, or that if they come from libpq,
-              -- they don't do any of the internal libpq state "cleaning"
-              -- that is necessary.
+              -- they are not from libpq. If an error happens in libpq
+              -- (e.g. the query being canceled or session terminated),
+              -- libpq will not throw, but will instead return a Result
+              -- indicating an error
               uninterruptibleMask $ \restore ->
                 restore (consumeUntilNotBusy h socket >> getResult h Nothing)
                   `onException` cancelAndClear h socket
@@ -402,7 +403,7 @@ execute_ conn q@(Query stmt) = do
   finishExecute conn q result
 
 finishExecute :: Connection -> Query -> PQ.Result -> IO Int64
-finishExecute _conn q result = do
+finishExecute conn q result = do
     status <- PQ.resultStatus result
     case status of
       -- FIXME: handle PQ.CopyBoth and PQ.SingleTuple
@@ -425,9 +426,9 @@ finishExecute _conn q result = do
           throwIO $ QueryError "execute: COPY TO is not supported" q
       PQ.CopyIn ->
           throwIO $ QueryError "execute: COPY FROM is not supported" q
-      PQ.BadResponse   -> throwResultError "execute" result status
-      PQ.NonfatalError -> throwResultError "execute" result status
-      PQ.FatalError    -> throwResultError "execute" result status
+      PQ.BadResponse   -> throwResultError "execute" conn result status
+      PQ.NonfatalError -> throwResultError "execute" conn result status
+      PQ.FatalError    -> throwResultError "execute" conn result status
     where
      mkInteger str = B8.foldl' delta 0 str
                 where
@@ -436,9 +437,11 @@ finishExecute _conn q result = do
                     then 10 * acc + fromIntegral (ord c - ord '0')
                     else error ("finishExecute:  not an int: " ++ B8.unpack str)
 
-throwResultError :: ByteString -> PQ.Result -> PQ.ExecStatus -> IO a
-throwResultError _ result status = do
-    errormsg  <- fromMaybe "" <$>
+throwResultError :: ByteString -> Connection -> PQ.Result -> PQ.ExecStatus -> IO a
+throwResultError _ conn result status = do
+    -- Some errors only exist in "errorMessage"
+    mConnectionError <- withConnection conn PQ.errorMessage
+    errormsg  <- fromMaybe "" . (mConnectionError <|>) <$>
                  PQ.resultErrorField result PQ.DiagMessagePrimary
     detail    <- fromMaybe "" <$>
                  PQ.resultErrorField result PQ.DiagMessageDetail

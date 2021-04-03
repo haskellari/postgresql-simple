@@ -92,9 +92,9 @@ doCopy funcName conn template q = do
 #if MIN_VERSION_postgresql_libpq(0,9,2)
       PQ.SingleTuple   -> errMsg "single-row mode is not supported"
 #endif
-      PQ.BadResponse   -> throwResultError funcName result status
-      PQ.NonfatalError -> throwResultError funcName result status
-      PQ.FatalError    -> throwResultError funcName result status
+      PQ.BadResponse   -> throwResultError funcName conn result status
+      PQ.NonfatalError -> throwResultError funcName conn result status
+      PQ.FatalError    -> throwResultError funcName conn result status
 
 data CopyOutResult
    = CopyOutRow  !B.ByteString         -- ^ Data representing either exactly
