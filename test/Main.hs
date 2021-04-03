@@ -27,7 +27,7 @@ import Control.Exception as E
 import Control.Monad
 import Data.Char
 import Data.Foldable (toList)
-import Data.List (concat, sort)
+import Data.List (concat, sort, isInfixOf)
 import Data.IORef
 import Data.Monoid ((<>))
 import Data.String (fromString)
@@ -50,6 +50,7 @@ import System.FilePath
 import System.Timeout(timeout)
 import Data.Time.Compat (getCurrentTime, diffUTCTime)
 import System.Environment (getEnvironment)
+import qualified System.IO as IO
 
 import Test.Tasty
 import Test.Tasty.Golden
@@ -86,8 +87,10 @@ tests env = testGroup "tests"
     , testCase "2-ary generic"        . testGeneric2
     , testCase "3-ary generic"        . testGeneric3
     , testCase "Timeout"              . testTimeout
+    , testCase "Expected user exceptions"     . testExpectedExceptions
     , testCase "Async exceptions"     . testAsyncExceptionFailure
-    , testCase "Sync exceptions"     . testSyncExceptionFailure
+    , testCase "Query canceled"     . testCanceledQueryExceptions
+    , testCase "Connection terminated"     . testConnectionTerminated
     ]
 
 testBytea :: TestEnv -> TestTree
@@ -537,6 +540,21 @@ testDouble TestEnv{..} = do
     [Only (x :: Double)] <- query_ conn "SELECT '-Infinity'::float8"
     x @?= (-1 / 0)
 
+-- | Specifies exceptions thrown by postgresql-simple for certain user errors.
+testExpectedExceptions :: TestEnv -> Assertion
+testExpectedExceptions TestEnv{..} = do
+  withConn $ \c -> do
+    execute_ c "SELECT 1,2" `shouldThrow` (\(e :: QueryError) -> "2-column result" `isInfixOf` show e)
+    execute_ c "SELECT 1/0" `shouldThrow` (\(e :: SqlError) -> sqlState e == "22012")
+    (query_ c "SELECT 1, 2, 3" :: IO [(String, Int)]) `shouldThrow` (\(e :: ResultError) -> errSQLType e == "int4" && errHaskellType e == "Text")
+
+shouldThrow :: forall e a. Exception e => IO a -> (e -> Bool) -> IO ()
+shouldThrow f pred = do
+  ea <- try f
+  assertBool "Exception is as expected" $ case ea of
+    Right _ -> False
+    Left (ex :: e) -> pred ex
+
 -- | Ensures that asynchronous exceptions thrown while queries are executing
 -- are handled properly.
 testAsyncExceptionFailure :: TestEnv -> Assertion
@@ -544,33 +562,76 @@ testAsyncExceptionFailure TestEnv{..} = withConn $ \c -> do
   -- We need to give it enough time to start executing the query
   -- before timing out. One second should be more than enough
   execute_ c "SET my.setting TO '42'"
-  tmt <- timeout (1000 * 1000) (execute_ c "SELECT pg_sleep(60)")
-  tmt @?= Nothing
-  -- Any other query should work now without errors.
-  number42 <- query_ c "SELECT current_setting('my.setting')"
-  number42 @?= [ Only ("42" :: String) ]
+  testAsyncException c (1000 * 1000) (execute_ c "SELECT pg_sleep(60)")
+  testAsyncException c (1000 * 1000) $
+    bracket_ (execute_ c "CREATE TABLE IF NOT EXISTS copy_cancel (v INT)") (execute_ c "DROP TABLE IF EXISTS copy_cancel") $
+        bracket_ (copy_ c "COPY copy_cancel FROM STDIN (FORMAT CSV)") (putCopyEnd c) $ do
+          putCopyData c "1\n"
+          threadDelay (1000 * 1000 * 60)
 
--- | Ensures that synchronous exceptions thrown while queries are executing
--- are handled properly.
-testSyncExceptionFailure :: TestEnv -> Assertion
-testSyncExceptionFailure TestEnv{..} = do
+  where
+    testAsyncException c timeLimit f = do
+      tmt <- timeout timeLimit f
+      tmt @?= Nothing
+      -- Any other query should work now without errors.
+      number42 <- query_ c "SELECT current_setting('my.setting')"
+      number42 @?= [ Only ("42" :: String) ]
+
+-- | Ensures that canceled queries don't invalidate the Connection and specifies how
+-- they can be detected.
+testCanceledQueryExceptions :: TestEnv -> Assertion
+testCanceledQueryExceptions TestEnv{..} = do
   withConn $ \c1 -> withConn $ \c2 -> do
     [ Only (c1Pid :: Int) ] <- query_ c1 "SELECT pg_backend_pid()"
     execute_ c1 "SET my.setting TO '42'"
-    withAsync (execute_ c1 "SELECT pg_sleep(60)") $ \pgSleep -> do
-      -- We need to give it enough time to start executing the query
-      -- before canceling it. One second should be more than enough
-      threadDelay (1000 * 1000)
-      cancelResult <- query c2 "SELECT pg_cancel_backend(?)" (Only c1Pid)
-      cancelResult @?= [ Only True ]
-      killedQuery <- try $ wait pgSleep
-      assertBool "Query was canceled" $ case killedQuery of
-        Right _ -> False
-        Left (ex :: SqlError) -> sqlState ex == "57014"
+    
+    testCancelation c1 c2 c1Pid execPgSleep $ \(ex :: SqlError) -> sqlState ex == "57014"
+
+    -- What should we expect when COPY is canceled and putCopyEnd runs? The same SqlError as above, perhaps? Right now,
+    -- detecting if a query was canceled involves detecting two distinct types of exception.
+    testCancelation c1 c2 c1Pid execCopy $ \(ex :: IOException) -> "Database.PostgreSQL.Simple.Copy.putCopyEnd: failed to parse command status" `isInfixOf` show ex
+                                                      && "ERROR:  canceling statement due to user request" `isInfixOf` show ex
     
     -- Any other query should work now without errors.
     number42 <- query_ c1 "SELECT current_setting('my.setting')"
     number42 @?= [ Only ("42" :: String) ]
+
+  where
+    execPgSleep c = execute_ c "SELECT pg_sleep(60)"
+    execCopy c = 
+      bracket_ (execute_ c "CREATE TABLE IF NOT EXISTS copy_cancel (v INT)") (execute_ c "DROP TABLE IF EXISTS copy_cancel") $
+        bracket_ (copy_ c "COPY copy_cancel FROM STDIN (FORMAT CSV)") (putCopyEnd c) $ do
+          putCopyData c "1\n"
+          threadDelay (1000 * 1000 * 2)
+          -- putCopyEnd will run after pg_cancel_backend due to threadDelays
+    testCancelation c1 c2 cPid f exPred = withAsync (f c1) $ \longRunningAction -> do
+      -- We need to give it enough time to start executing the query
+      -- before canceling it. One second should be more than enough
+      threadDelay (1000 * 1000)
+      cancelResult <- query c2 "SELECT pg_cancel_backend(?)" (Only cPid)
+      cancelResult @?= [ Only True ]
+      wait longRunningAction `shouldThrow` exPred
+      -- Connection is still usable after query canceled
+      [ Only (cPidAgain :: Int) ] <- query_ c1 "SELECT pg_backend_pid()"
+      cPid @?= cPidAgain
+
+-- | Ensures that a specific type of exception is thrown when
+-- the connection is terminated abruptly.
+testConnectionTerminated :: TestEnv -> Assertion
+testConnectionTerminated TestEnv{..} = do
+  withConn $ \c1 -> withConn $ \c2 -> do
+    [ Only (c1Pid :: Int) ] <- query_ c1 "SELECT pg_backend_pid()"
+    withAsync (execute_ c1 "SELECT pg_sleep(60)") $ \pgSleep -> do
+      -- We need to give it enough time to start executing the query
+      -- before terminating it. One second should be more than enough
+      threadDelay (1000 * 1000)
+      cancelResult <- query c2 "SELECT pg_terminate_backend(?)" (Only c1Pid)
+      cancelResult @?= [ Only True ]
+      killedQuery <- try $ wait pgSleep
+      assertBool "Connection was terminated" $ case killedQuery of
+        Right _ -> False
+        Left (ex :: SqlError) -> ("server closed the connection unexpectedly" `isInfixOf` show (sqlErrorMsg ex))
+                                && sqlExecStatus ex == FatalError
 
 testGeneric1 :: TestEnv -> Assertion
 testGeneric1 TestEnv{..} = do
@@ -658,6 +719,8 @@ withTestEnv connstr cb =
 
 main :: IO ()
 main = withConnstring $ \connstring -> do
+    IO.hSetBuffering IO.stdout IO.NoBuffering
+    IO.hSetBuffering IO.stderr IO.NoBuffering
     withTestEnv connstring (defaultMain . tests)
 
 withConnstring :: (BS8.ByteString -> IO ()) -> IO ()
