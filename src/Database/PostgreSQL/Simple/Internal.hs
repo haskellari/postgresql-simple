@@ -327,24 +327,30 @@ exec conn sql =
           Just res -> return res
 #else
 exec conn sql =
-    withConnection conn $ \h -> do
-        success <- PQ.sendQuery h sql
-        if success
-        then do
-          mfd <- PQ.socket h
-          case mfd of
-            Nothing -> throwIO $! fdError "Database.PostgreSQL.Simple.Internal.exec"
-            Just socket ->
-              -- Here we assume any exceptions are asynchronous, or that
-              -- they are not from libpq. If an error happens in libpq
-              -- (e.g. the query being canceled or session terminated),
-              -- libpq will not throw, but will instead return a Result
-              -- indicating an error
-              uninterruptibleMask $ \restore ->
-                restore (consumeUntilNotBusy h socket >> getResult h Nothing)
+    withConnection conn $ \h -> withSocket h $ \socket -> uninterruptibleMask $ \restore ->
+        -- If an error happens in libpq
+        -- (e.g. the query being canceled or session terminated),
+        -- libpq will not throw, but will instead return a Result
+        -- indicating an error. But if an asynchronous exception
+        -- is thrown, it might be necessary to reset the libpq's
+        -- connection state so the connection can still be used.
+        restore (sendQueryAndWaitForResults h socket)
                   `onException` cancelAndClear h socket
-        else throwLibPQError h "PQsendQuery failed"
+        
   where
+    withSocket h f = do
+      mfd <- PQ.socket h
+      case mfd of
+        Nothing -> throwIO $! fdError "Database.PostgreSQL.Simple.Internal.exec"
+        Just socket -> f socket
+    
+    sendQueryAndWaitForResults h socket = do
+      success <- PQ.sendQuery h sql
+      if success then do
+        consumeUntilNotBusy h socket
+        getResult h Nothing
+      else throwLibPQError h "PQsendQuery failed"
+
     cancelAndClear h socket = do
       mcncl <- PQ.getCancel h
       case mcncl of
