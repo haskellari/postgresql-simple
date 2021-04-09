@@ -327,14 +327,14 @@ exec conn sql =
           Just res -> return res
 #else
 exec conn sql =
-    withConnection conn $ \h -> withSocket h $ \socket -> uninterruptibleMask $ \restore ->
+    withConnection conn $ \h -> withSocket h $ \socket->
         -- If an error happens in libpq
         -- (e.g. the query being canceled or session terminated),
         -- libpq will not throw, but will instead return a Result
         -- indicating an error. But if an asynchronous exception
-        -- is thrown, it might be necessary to reset the libpq's
+        -- is thrown, it might be necessary to reset libpq's
         -- connection state so the connection can still be used.
-        restore (sendQueryAndWaitForResults h socket)
+        sendQueryAndWaitForResults h socket
                   `onException` cancelAndClear h socket
         
   where
