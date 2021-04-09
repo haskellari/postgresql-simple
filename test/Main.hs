@@ -562,7 +562,7 @@ testAsyncExceptionFailure TestEnv{..} = withConn $ \c -> do
   -- We need to give it enough time to start executing the query
   -- before timing out. One second should be more than enough
   execute_ c "SET my.setting TO '42'"
-  testAsyncException c (1000 * 1000) (execute_ c "SELECT pg_sleep(60)")
+  testAsyncException c (1000 * 1000) (execute_ c "SELECT pg_sleep(5)")
   testAsyncException c (1000 * 1000) $
     bracket_ (execute_ c "CREATE TABLE IF NOT EXISTS copy_cancel (v INT)") (execute_ c "DROP TABLE IF EXISTS copy_cancel") $
         bracket_ (copy_ c "COPY copy_cancel FROM STDIN (FORMAT CSV)") (putCopyEnd c) $ do
@@ -597,7 +597,7 @@ testCanceledQueryExceptions TestEnv{..} = do
     number42 @?= [ Only ("42" :: String) ]
 
   where
-    execPgSleep c = execute_ c "SELECT pg_sleep(60)"
+    execPgSleep c = execute_ c "SELECT pg_sleep(5)"
     execCopy c = 
       bracket_ (execute_ c "CREATE TABLE IF NOT EXISTS copy_cancel (v INT)") (execute_ c "DROP TABLE IF EXISTS copy_cancel") $
         bracket_ (copy_ c "COPY copy_cancel FROM STDIN (FORMAT CSV)") (putCopyEnd c) $ do
@@ -621,7 +621,7 @@ testConnectionTerminated :: TestEnv -> Assertion
 testConnectionTerminated TestEnv{..} = do
   withConn $ \c1 -> withConn $ \c2 -> do
     [ Only (c1Pid :: Int) ] <- query_ c1 "SELECT pg_backend_pid()"
-    withAsync (execute_ c1 "SELECT pg_sleep(60)") $ \pgSleep -> do
+    withAsync (execute_ c1 "SELECT pg_sleep(5)") $ \pgSleep -> do
       -- We need to give it enough time to start executing the query
       -- before terminating it. One second should be more than enough
       threadDelay (1000 * 1000)
