@@ -73,6 +73,7 @@ module Database.PostgreSQL.Simple
     , Base.connectPostgreSQL
     , Base.close
     , Base.connect
+    , Base.withConnect
     , Base.ConnectInfo(..)
     , Base.defaultConnectInfo
     , Base.postgreSQLConnectionString

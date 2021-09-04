@@ -155,6 +155,10 @@ defaultConnectInfo = ConnectInfo {
 connect :: ConnectInfo -> IO Connection
 connect = connectPostgreSQL . postgreSQLConnectionString
 
+-- | Memory bracket around 'connect' and 'close'.
+withConnect :: ConnectInfo -> (Connection -> IO c) -> IO c
+withConnect connInfo = bracket (connect connInfo) close
+
 -- | Attempt to make a connection based on a libpq connection string.
 --   See <https://www.postgresql.org/docs/9.5/static/libpq-connect.html#LIBPQ-CONNSTRING>
 --   for more information.  Also note that environment variables also affect
