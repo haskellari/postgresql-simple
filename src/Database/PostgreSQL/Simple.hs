@@ -747,7 +747,7 @@ forEachWith_ parser conn template = foldWith_ parser conn template () . const
 -- > instance (ToField a) => ToRow a where
 -- >     ...
 --
--- Unfortunately, this wreaks havoc with type inference, so we take a
+-- Unfortunately, this wreaks havoc on instance resolution, so we take a
 -- different tack. To represent a single value @val@ as a parameter, write
 -- a singleton list @[val]@, use 'Just' @val@, or use 'Only' @val@.
 --
