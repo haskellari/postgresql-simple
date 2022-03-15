@@ -26,6 +26,7 @@ module Database.PostgreSQL.Simple.FromRow
      , field
      , fieldWith
      , numFieldsRemaining
+     , GFromRow
      ) where
 
 import           Prelude hiding (null)
