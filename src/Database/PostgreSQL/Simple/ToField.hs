@@ -318,14 +318,13 @@ instance ToField UUID where
 instance ToField JSON.Value where
     toField = toField . JSON.encode
 
--- | Convert a Haskell value to a JSON 'JSON.Value' using
--- 'JSON.toJSON' and convert that to a field using 'toField'.
+-- | Convert a Haskell value to JSON using 'JSON.toEncoding'.
 --
 -- This can be used as the default implementation for the 'toField'
 -- method for Haskell types that have a JSON representation in
 -- PostgreSQL.
 toJSONField :: JSON.ToJSON a => a -> Action
-toJSONField = toField . JSON.toJSON
+toJSONField = toField . JSON.encode
 
 -- | Surround a string with single-quote characters: \"@'@\"
 --
