@@ -55,7 +55,7 @@ import           Database.PostgreSQL.Simple.Internal hiding (result, row)
 -- | Issue a @COPY FROM STDIN@ or @COPY TO STDOUT@ query.   In the former
 --   case, the connection's state will change to @CopyIn@;  in the latter,
 --   @CopyOut@.  The connection must be in the ready state in order
---   to call this function.  Performs parameter subsitution.
+--   to call this function.  Performs parameter substitution.
 
 copy :: ( ToRow params ) => Connection -> Query -> params -> IO ()
 copy conn template qs = do

@@ -253,7 +253,7 @@
     support UTF8 except for Mule Internal Code,  the Multilingual
     Extensions for Emacs.   An exception should be raised upon
     connecting to a database by the backend if the backend cannot
-    accomodate this requirement.
+    accommodate this requirement.
 
   * Added `Eq` and `Typeable` instances for `Connection`.
 
@@ -391,7 +391,7 @@
 
   * Changed the Identifier and QualifiedIdentifier to use Text in
     order to avoid encoding errors.  Technically this requires a
-    major verson bump, but let's pretend 0.4.1.0 didn't happen.
+    major version bump, but let's pretend 0.4.1.0 didn't happen.
 
   * Removed non-exhaustive cases in the ToField instance for Values,
     and tweaked error messages.
@@ -551,7 +551,7 @@
 
   * Added a brand new TypeInfo system that gives FromField instances
     convenient and efficient access to the pg_type metatable.   This
-    replaced the older typename cache,  and was neccesary to properly
+    replaced the older typename cache,  and was necessary to properly
     support postgres array types.   Thanks to Bas van Dijk for his
     work on this feature.
 
@@ -643,7 +643,7 @@
         now the preferred way of dealing with `timestamp` (without time zone).
 
       * `Database.PostgreSQL.Simple.Time` is a new module that offers types
-        that accomodate PostgreSQL's infinities.
+        that accommodate PostgreSQL's infinities.
 
       * All time-related `FromField`/`ToField` instances are now based on new,
         higher-speed parsers and printers instead of those provided by the
