@@ -37,7 +37,7 @@ module Database.PostgreSQL.Simple.Notification
      ) where
 
 import           Control.Monad ( join, void )
-import           Control.Exception ( throwIO, catch )
+import           Control.Exception ( throwIO, onException, mapException )
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as B8
 import           Database.PostgreSQL.Simple.Internal
@@ -120,9 +120,10 @@ getNotification conn = join $ withConnection conn fetch
                 -- the lock... but such a major bug is likely to exhibit
                 -- itself in an at least somewhat more dramatic fashion.)
                 Just fd  -> do
-                  (waitRead, _) <- threadWaitReadSTM fd
+                  (waitRead, unregister) <- threadWaitReadSTM fd
                   return $ do
-                    atomically waitRead `catch` (throwIO . setIOErrorLocation)
+                    mapException setIOErrorLocation
+                      (atomically waitRead `onException` unregister)
                     loop
 #endif
 
