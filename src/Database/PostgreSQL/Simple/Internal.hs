@@ -55,7 +55,7 @@ import           Control.Monad.Trans.Class
 import           GHC.Generics
 import           GHC.IO.Exception
 #if !defined(mingw32_HOST_OS)
-import           Control.Concurrent(threadWaitRead, threadWaitWrite)
+import           Control.Concurrent(threadWaitRead, threadWaitWrite, threadDelay)
 #endif
 
 -- | A Field represents metadata about a particular field
@@ -78,6 +78,10 @@ data Connection = Connection {
      connectionHandle  :: {-# UNPACK #-} !(MVar PQ.Connection)
    , connectionObjects :: {-# UNPACK #-} !(MVar TypeInfoCache)
    , connectionTempNameCounter :: {-# UNPACK #-} !(IORef Int64)
+   , connectionMayHaveOrphanedStatement :: {-# UNPACK #-} !(IORef Bool)
+   -- ^ True if there could be a statement running in postgres in this connection, but
+   -- postgresql-simple is not waiting for results from it. This can happen when
+   -- postgresql-simple is interrupted by asynchronous exceptions.
    } deriving (Typeable)
 
 instance Eq Connection where
@@ -235,6 +239,7 @@ connectPostgreSQL connstr = do
           connectionHandle  <- newMVar conn
           connectionObjects <- newMVar (IntMap.empty)
           connectionTempNameCounter <- newIORef 0
+          connectionMayHaveOrphanedStatement <- newIORef False
           let wconn = Connection{..}
           version <- PQ.serverVersion conn
           let settings
@@ -327,15 +332,22 @@ exec conn sql =
           Just res -> return res
 #else
 exec conn sql =
-    withConnection conn $ \h -> withSocket h $ \socket->
+    withConnection conn $ \h -> withSocket h $ \socket-> uninterruptibleMask $ \restore ->
         -- If an error happens in libpq
         -- (e.g. the query being canceled or session terminated),
         -- libpq will not throw, but will instead return a Result
         -- indicating an error. But if an asynchronous exception
         -- is thrown, it might be necessary to reset libpq's
         -- connection state so the connection can still be used.
-        sendQueryAndWaitForResults h socket
-                  `onException` cancelAndClear h socket
+        -- We do that in a future statement because it is not safe
+        -- to run more queries inside exception handlers.
+        restore (do
+          needsToCancel <- readIORef (connectionMayHaveOrphanedStatement conn)
+          when needsToCancel $ do
+            cancelAndClear h socket
+            writeIORef (connectionMayHaveOrphanedStatement conn) False
+          sendQueryAndWaitForResults h socket)
+                  `onException` writeIORef (connectionMayHaveOrphanedStatement conn) True
         
   where
     withSocket h f = do
@@ -485,6 +497,7 @@ newNullConnection = do
     connectionHandle  <- newMVar =<< PQ.newNullConnection
     connectionObjects <- newMVar IntMap.empty
     connectionTempNameCounter <- newIORef 0
+    connectionMayHaveOrphanedStatement <- newIORef False
     return Connection{..}
 
 data Row = Row {

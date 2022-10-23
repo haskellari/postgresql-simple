@@ -16,7 +16,7 @@ import Database.PostgreSQL.Simple.ToField (ToField)
 import Database.PostgreSQL.Simple.FromField (FromField)
 import Database.PostgreSQL.Simple.HStore
 import Database.PostgreSQL.Simple.Newtypes
-import Database.PostgreSQL.Simple.Internal (breakOnSingleQuestionMark)
+import Database.PostgreSQL.Simple.Internal (breakOnSingleQuestionMark, connectionMayHaveOrphanedStatement)
 import Database.PostgreSQL.Simple.Types(Query(..),Values(..), PGArray(..))
 import qualified Database.PostgreSQL.Simple.Transaction as ST
 
@@ -88,6 +88,7 @@ tests env = testGroup "tests"
     , testCase "3-ary generic"        . testGeneric3
     , testCase "Timeout"              . testTimeout
     , testCase "Expected user exceptions"     . testExpectedExceptions
+    , testCase "Orphaned running query state mgmt" . testOrphanedRunningQueryStateMgmt
     , testCase "Async exceptions"     . testAsyncExceptionFailure
     , testCase "Query canceled"     . testCanceledQueryExceptions
     , testCase "Connection terminated"     . testConnectionTerminated
@@ -554,6 +555,50 @@ shouldThrow f pred = do
   assertBool "Exception is as expected" $ case ea of
     Right _ -> False
     Left (ex :: e) -> pred ex
+
+-- | Ensures that the state associated with there being an orphaned
+-- running statement in a connection is updated accordingly.
+testOrphanedRunningQueryStateMgmt :: TestEnv -> Assertion
+testOrphanedRunningQueryStateMgmt TestEnv{..} = withConn $ \c -> do
+  -- 1. Connections are created with no orphaned running queries, naturally.
+  runState c `shouldReturn` False
+
+  -- 2. Interrupting a query that is still running should set the state
+  -- to True.
+  -- We need to give it enough time to start executing the query
+  -- before timing out. One second should be more than enough
+  void $ timeout (1000 * 1000) (execute_ c "SELECT pg_sleep(100)")
+  runState c `shouldReturn` True
+
+  -- 3. Running a new query should clear the state again
+  [ Only (num13 :: Int) ] <- query c "SELECT 13" ()
+  num13 @?= 13
+  runState c `shouldReturn` False
+
+  -- 4. Interrupting a query but letting it run until completion shouldn't
+  -- matter (postgresql-simple has no way of knowing that), but no errors
+  -- should come out of it
+  void $ timeout (1000 * 1000) (execute_ c "SELECT pg_sleep(2)")
+  runState c `shouldReturn` True
+
+  -- One second has passed, wait 2 more to ensure the query finished.
+  -- The state is still True.
+  threadDelay (1000 * 1000 * 2)
+  runState c `shouldReturn` True
+
+  -- 5. Check that nothing wrong happens if we try to cancel a query
+  -- that is no longer running (this happens automatically by running another query)
+  [ Only (num17 :: Int) ] <- query c "SELECT 17" ()
+  num17 @?= 17
+  runState c `shouldReturn` False
+
+  where
+    runState = readIORef . connectionMayHaveOrphanedStatement
+    shouldReturn :: (Eq a, Show a, HasCallStack) => IO a -> a -> IO ()
+    shouldReturn f expected = do
+        actual <- f
+        actual @?= expected
+
 
 -- | Ensures that asynchronous exceptions thrown while queries are executing
 -- are handled properly.
