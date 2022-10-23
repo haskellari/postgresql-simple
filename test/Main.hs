@@ -592,6 +592,10 @@ testOrphanedRunningQueryStateMgmt TestEnv{..} = withConn $ \c -> do
   num17 @?= 17
   runState c `shouldReturn` False
 
+  -- 6. Other errors that are not interruptions don't change the connection's state
+  execute_ c "SELECT 1/0" `shouldThrow` (\(_ :: SqlError) -> True)
+  runState c `shouldReturn` False
+
   where
     runState = readIORef . connectionMayHaveOrphanedStatement
     shouldReturn :: (Eq a, Show a, HasCallStack) => IO a -> a -> IO ()

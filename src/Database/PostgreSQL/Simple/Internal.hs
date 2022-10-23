@@ -332,21 +332,23 @@ exec conn sql =
           Just res -> return res
 #else
 exec conn sql =
-    withConnection conn $ \h -> withSocket h $ \socket-> uninterruptibleMask $ \restore ->
-        -- If an error happens in libpq
-        -- (e.g. the query being canceled or session terminated),
-        -- libpq will not throw, but will instead return a Result
-        -- indicating an error. But if an asynchronous exception
-        -- is thrown, it might be necessary to reset libpq's
-        -- connection state so the connection can still be used.
-        -- We do that in a future statement because it is not safe
-        -- to run more queries inside exception handlers.
-        restore (do
-          needsToCancel <- readIORef (connectionMayHaveOrphanedStatement conn)
-          when needsToCancel $ do
-            cancelAndClear h socket
-            writeIORef (connectionMayHaveOrphanedStatement conn) False
-          sendQueryAndWaitForResults h socket)
+    withConnection conn $ \h -> withSocket h $ \socket-> uninterruptibleMask $ \restore -> do
+      -- 1. If postgresql-simple was interrupted when waiting for query results
+      -- before, cancel that query (it may even have completed by now, but that's fine)
+      -- before issuing a new one.
+      restore $ do
+        needsToCancel <- readIORef (connectionMayHaveOrphanedStatement conn)
+        when needsToCancel $ do
+          cancelRunningQuery h socket
+          writeIORef (connectionMayHaveOrphanedStatement conn) False
+
+      -- 2. Ideally, the code that issues the query and waits for results
+      -- should not throw exceptions. That way we know an exception means
+      -- postgresql-simple was interrupted and the query might still be running.
+      -- Still, even if the code throws exceptions for other reasons, it means
+      -- we'll try to cancel a running query later once, which is fairly inocuous
+      -- as long as such exceptions are rare (which they should be).
+      restore (sendQueryAndWaitForResults h socket)
                   `onException` writeIORef (connectionMayHaveOrphanedStatement conn) True
         
   where
@@ -363,14 +365,16 @@ exec conn sql =
         getResult h Nothing
       else throwLibPQError h "PQsendQuery failed"
 
-    cancelAndClear h socket = do
+    cancelRunningQuery h socket = do
       mcncl <- PQ.getCancel h
       case mcncl of
         Nothing -> pure ()
         Just cncl -> do
           cancelStatus <- PQ.cancel cncl
           case cancelStatus of
-            Left _ -> PQ.errorMessage h >>= \mmsg -> throwLibPQError h ("Database.PostgreSQL.Simple.Internal.cancelAndClear: " <> fromMaybe "Unknown error" mmsg)
+            Left _ -> PQ.errorMessage h >>= \mmsg -> throwLibPQError h ("Database.PostgreSQL.Simple.Internal.cancelRunningQuery: " <> fromMaybe "Unknown error" mmsg
+                                                            <> "\nIt looks like postgresql-simple was previously interrupted by an exception while waiting for query results."
+                                                            <> " Because of that, before issuing a new query, we tried to cancel that previous query that was interrupted, but failed to do so.")
             Right () -> do
               consumeUntilNotBusy h socket
               waitForNullResult h
