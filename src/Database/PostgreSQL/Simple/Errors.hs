@@ -64,7 +64,7 @@ instance Exception ConstraintViolation
 
 
 -- | Tries to convert 'SqlError' to 'ConstrainViolation', checks sqlState and
--- succeedes only if able to parse sqlErrorMsg.
+-- succeeds only if able to parse sqlErrorMsg.
 --
 -- > createUser = handleJust constraintViolation handler $ execute conn ...
 -- >   where

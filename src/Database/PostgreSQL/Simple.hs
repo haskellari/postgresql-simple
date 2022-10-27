@@ -73,6 +73,7 @@ module Database.PostgreSQL.Simple
     , Base.connectPostgreSQL
     , Base.close
     , Base.connect
+    , Base.withConnect
     , Base.ConnectInfo(..)
     , Base.defaultConnectInfo
     , Base.postgreSQLConnectionString
@@ -900,7 +901,7 @@ forEachWith_ parser conn template = foldWith_ parser conn template () . const
 --   all values of the given PostgreSQL type is considered \"compatible\".
 --   For instance, you can always extract a PostgreSQL 16-bit @SMALLINT@
 --   column to a Haskell 'Int'.  The Haskell 'Float' type can accurately
---   represent a @SMALLINT@, so it is considered compatble with those types.
+--   represent a @SMALLINT@, so it is considered compatible with those types.
 --
 -- * A numeric compatibility check is based only on the type of a
 --   column, /not/ on its values. For instance, a PostgreSQL 64-bit
