@@ -91,7 +91,6 @@ tests env = testGroup "tests"
     , testCase "Orphaned running query state mgmt" . testOrphanedRunningQueryStateMgmt
     , testCase "Async exceptions"     . testAsyncExceptionFailure
     , testCase "Query canceled"     . testCanceledQueryExceptions
-    , testCase "Connection terminated"     . testConnectionTerminated
     ]
 
 testBytea :: TestEnv -> TestTree
@@ -663,24 +662,6 @@ testCanceledQueryExceptions TestEnv{..} = do
       -- Connection is still usable after query canceled
       [ Only (cPidAgain :: Int) ] <- query_ c1 "SELECT pg_backend_pid()"
       cPid @?= cPidAgain
-
--- | Ensures that a specific type of exception is thrown when
--- the connection is terminated abruptly.
-testConnectionTerminated :: TestEnv -> Assertion
-testConnectionTerminated TestEnv{..} = do
-  withConn $ \c1 -> withConn $ \c2 -> do
-    [ Only (c1Pid :: Int) ] <- query_ c1 "SELECT pg_backend_pid()"
-    withAsync (execute_ c1 "SELECT pg_sleep(5)") $ \pgSleep -> do
-      -- We need to give it enough time to start executing the query
-      -- before terminating it. One second should be more than enough
-      threadDelay (1000 * 1000)
-      cancelResult <- query c2 "SELECT pg_terminate_backend(?)" (Only c1Pid)
-      cancelResult @?= [ Only True ]
-      killedQuery <- try $ wait pgSleep
-      assertBool "Connection was terminated" $ case killedQuery of
-        Right _ -> False
-        Left (ex :: SqlError) -> ("server closed the connection unexpectedly" `isInfixOf` show (sqlErrorMsg ex))
-                                && sqlExecStatus ex == FatalError
 
 testGeneric1 :: TestEnv -> Assertion
 testGeneric1 TestEnv{..} = do

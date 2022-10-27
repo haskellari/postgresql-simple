@@ -1,7 +1,6 @@
 {-# LANGUAGE  CPP, BangPatterns, DoAndIfThenElse, RecordWildCards  #-}
 {-# LANGUAGE  DeriveDataTypeable, DeriveGeneric                    #-}
 {-# LANGUAGE  GeneralizedNewtypeDeriving                           #-}
-{-# LANGUAGE  ScopedTypeVariables                                  #-}
 
 ------------------------------------------------------------------------------
 -- |
@@ -55,7 +54,7 @@ import           Control.Monad.Trans.Class
 import           GHC.Generics
 import           GHC.IO.Exception
 #if !defined(mingw32_HOST_OS)
-import           Control.Concurrent(threadWaitRead, threadWaitWrite, threadDelay)
+import           Control.Concurrent(threadWaitRead, threadWaitWrite)
 #endif
 
 -- | A Field represents metadata about a particular field
@@ -425,7 +424,7 @@ execute_ conn q@(Query stmt) = do
   finishExecute conn q result
 
 finishExecute :: Connection -> Query -> PQ.Result -> IO Int64
-finishExecute conn q result = do
+finishExecute _conn q result = do
     status <- PQ.resultStatus result
     case status of
       -- FIXME: handle PQ.CopyBoth and PQ.SingleTuple
@@ -448,9 +447,9 @@ finishExecute conn q result = do
           throwIO $ QueryError "execute: COPY TO is not supported" q
       PQ.CopyIn ->
           throwIO $ QueryError "execute: COPY FROM is not supported" q
-      PQ.BadResponse   -> throwResultError "execute" conn result status
-      PQ.NonfatalError -> throwResultError "execute" conn result status
-      PQ.FatalError    -> throwResultError "execute" conn result status
+      PQ.BadResponse   -> throwResultError "execute" result status
+      PQ.NonfatalError -> throwResultError "execute" result status
+      PQ.FatalError    -> throwResultError "execute" result status
     where
      mkInteger str = B8.foldl' delta 0 str
                 where
@@ -459,11 +458,9 @@ finishExecute conn q result = do
                     then 10 * acc + fromIntegral (ord c - ord '0')
                     else error ("finishExecute:  not an int: " ++ B8.unpack str)
 
-throwResultError :: ByteString -> Connection -> PQ.Result -> PQ.ExecStatus -> IO a
-throwResultError _ conn result status = do
-    -- Some errors only exist in "errorMessage"
-    mConnectionError <- withConnection conn PQ.errorMessage
-    errormsg  <- fromMaybe "" . (mConnectionError <|>) <$>
+throwResultError :: ByteString -> PQ.Result -> PQ.ExecStatus -> IO a
+throwResultError _ result status = do
+    errormsg  <- fromMaybe "" <$>
                  PQ.resultErrorField result PQ.DiagMessagePrimary
     detail    <- fromMaybe "" <$>
                  PQ.resultErrorField result PQ.DiagMessageDetail

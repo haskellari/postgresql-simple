@@ -37,14 +37,14 @@ import           Control.Monad.Trans.Reader
 import           Control.Monad.Trans.State.Strict
 
 finishQueryWith :: RowParser r -> Connection -> Query -> PQ.Result -> IO [r]
-finishQueryWith parser conn q result = finishQueryWith' conn q result $ do
+finishQueryWith parser conn q result = finishQueryWith' q result $ do
     nrows <- PQ.ntuples result
     ncols <- PQ.nfields result
     forM' 0 (nrows-1) $ \row ->
         getRowWith parser row ncols conn result
 
 finishQueryWithV :: RowParser r -> Connection -> Query -> PQ.Result -> IO (V.Vector r)
-finishQueryWithV parser conn q result = finishQueryWith' conn q result $ do
+finishQueryWithV parser conn q result = finishQueryWith' q result $ do
     nrows <- PQ.ntuples result
     let PQ.Row nrows' = nrows
     ncols <- PQ.nfields result
@@ -56,7 +56,7 @@ finishQueryWithV parser conn q result = finishQueryWith' conn q result $ do
     V.unsafeFreeze mv
 
 finishQueryWithVU :: VU.Unbox r => RowParser r -> Connection -> Query -> PQ.Result -> IO (VU.Vector r)
-finishQueryWithVU parser conn q result = finishQueryWith' conn q result $ do
+finishQueryWithVU parser conn q result = finishQueryWith' q result $ do
     nrows <- PQ.ntuples result
     let PQ.Row nrows' = nrows
     ncols <- PQ.nfields result
@@ -67,8 +67,8 @@ finishQueryWithVU parser conn q result = finishQueryWith' conn q result $ do
         MVU.unsafeWrite mv (fromIntegral row') value
     VU.unsafeFreeze mv
 
-finishQueryWith' :: Connection -> Query -> PQ.Result -> IO a -> IO a
-finishQueryWith' conn q result k = do
+finishQueryWith' :: Query -> PQ.Result -> IO a -> IO a
+finishQueryWith' q result k = do
   status <- PQ.resultStatus result
   case status of
     PQ.TuplesOk -> k
@@ -82,9 +82,9 @@ finishQueryWith' conn q result k = do
 #if MIN_VERSION_postgresql_libpq(0,9,2)
     PQ.SingleTuple   -> queryErr "query: single-row mode is not supported"
 #endif
-    PQ.BadResponse   -> throwResultError "query" conn result status
-    PQ.NonfatalError -> throwResultError "query" conn result status
-    PQ.FatalError    -> throwResultError "query" conn result status
+    PQ.BadResponse   -> throwResultError "query" result status
+    PQ.NonfatalError -> throwResultError "query" result status
+    PQ.FatalError    -> throwResultError "query" result status
   where
     queryErr msg = throwIO $ QueryError msg q
 
