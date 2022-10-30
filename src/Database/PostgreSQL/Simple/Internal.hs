@@ -156,6 +156,8 @@ connect :: ConnectInfo -> IO Connection
 connect = connectPostgreSQL . postgreSQLConnectionString
 
 -- | Memory bracket around 'connect' and 'close'.
+--
+-- @since 0.6.5
 withConnect :: ConnectInfo -> (Connection -> IO c) -> IO c
 withConnect connInfo = bracket (connect connInfo) close
 
