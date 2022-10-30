@@ -1,3 +1,7 @@
+### Version 0.6.5 (2022-10-30)
+
+  * Add `withConnect`
+
 ### Version 0.6.4 (2021-01-06)
 
   * Add foldCopyData helper function
