@@ -118,7 +118,7 @@ module Database.PostgreSQL.Simple.FromField
 
 import           Control.Applicative ( Const(Const), (<|>), (<$>), pure, (*>), (<*) )
 import           Control.Concurrent.MVar (MVar, newMVar)
-import           Control.Exception (Exception)
+import           Control.Exception (Exception (toException, fromException))
 import qualified Data.Aeson as JSON
 import qualified Data.Aeson.Internal as JSON
 import qualified Data.Aeson.Parser as JSON (value')
@@ -182,7 +182,9 @@ data ResultError = Incompatible { errSQLType :: String
                  -- between metadata and actual data in a row).
                    deriving (Eq, Show, Typeable)
 
-instance Exception ResultError
+instance Exception ResultError where
+  toException = postgresqlExceptionToException
+  fromException = postgresqlExceptionFromException
 
 left :: Exception a => a -> Conversion b
 left = conversionError

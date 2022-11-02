@@ -60,7 +60,9 @@ data ConstraintViolation
    deriving (Show, Eq, Ord, Typeable)
 
 -- Default instance should be enough
-instance Exception ConstraintViolation
+instance Exception ConstraintViolation where
+  toException = postgresqlExceptionToException
+  fromException = postgresqlExceptionFromException
 
 
 -- | Tries to convert 'SqlError' to 'ConstrainViolation', checks sqlState and

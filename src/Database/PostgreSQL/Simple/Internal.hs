@@ -1,6 +1,8 @@
 {-# LANGUAGE  CPP, BangPatterns, DoAndIfThenElse, RecordWildCards  #-}
 {-# LANGUAGE  DeriveDataTypeable, DeriveGeneric                    #-}
 {-# LANGUAGE  GeneralizedNewtypeDeriving                           #-}
+{-# LANGUAGE  ExistentialQuantification                            #-}
+{-# LANGUAGE  InstanceSigs                                         #-}
 
 ------------------------------------------------------------------------------
 -- |
@@ -82,6 +84,29 @@ data Connection = Connection {
 instance Eq Connection where
    x == y = connectionHandle x == connectionHandle y
 
+-- | Superclass for postgresql exceptions
+data SomePostgreSqlException = forall e. Exception e => SomePostgreSqlException e
+  deriving Typeable
+
+postgresqlExceptionToException :: Exception e => e -> SomeException
+postgresqlExceptionToException = toException . SomePostgreSqlException
+
+postgresqlExceptionFromException :: Exception e => SomeException -> Maybe e
+postgresqlExceptionFromException x = do
+  SomePostgreSqlException a <- fromException x
+  cast a
+
+instance Show SomePostgreSqlException where
+  showsPrec :: Int -> SomePostgreSqlException -> ShowS
+  showsPrec p (SomePostgreSqlException e) = showsPrec p e
+
+#if __GLASGOW_HASKELL__ >= 7103
+instance Exception SomePostgreSqlException where
+  displayException (SomePostgreSqlException e) = displayException e
+#else
+instance Exception SomePostgreSqlException
+#endif
+
 data SqlError = SqlError {
      sqlState       :: ByteString
    , sqlExecStatus  :: ExecStatus
@@ -93,7 +118,10 @@ data SqlError = SqlError {
 fatalError :: ByteString -> SqlError
 fatalError msg = SqlError "" FatalError msg "" ""
 
-instance Exception SqlError
+instance Exception SqlError where
+  toException = postgresqlExceptionToException
+  fromException = postgresqlExceptionFromException
+
 
 -- | Exception thrown if 'query' is used to perform an @INSERT@-like
 -- operation, or 'execute' is used to perform a @SELECT@-like operation.
@@ -102,7 +130,9 @@ data QueryError = QueryError {
     , qeQuery :: Query
     } deriving (Eq, Show, Typeable)
 
-instance Exception QueryError
+instance Exception QueryError where
+  toException = postgresqlExceptionToException
+  fromException = postgresqlExceptionFromException
 
 -- | Exception thrown if a 'Query' could not be formatted correctly.
 -- This may occur if the number of \'@?@\' characters in the query
@@ -113,7 +143,9 @@ data FormatError = FormatError {
     , fmtParams :: [ByteString]
     } deriving (Eq, Show, Typeable)
 
-instance Exception FormatError
+instance Exception FormatError where
+  toException = postgresqlExceptionToException
+  fromException = postgresqlExceptionFromException
 
 data ConnectInfo = ConnectInfo {
       connectHost :: String

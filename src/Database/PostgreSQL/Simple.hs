@@ -64,6 +64,7 @@ module Database.PostgreSQL.Simple
     , Only(..)
     , (:.)(..)
     -- ** Exceptions
+    , SomePostgreSqlException(..)
     , SqlError(..)
     , PQ.ExecStatus(..)
     , FormatError(..)
