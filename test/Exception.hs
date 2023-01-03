@@ -8,11 +8,9 @@ import Database.PostgreSQL.Simple
 import Test.Tasty.HUnit (Assertion, assertBool)
 import Common (TestEnv)
 import Control.Exception (Exception (..), SomeException)
-import Data.Maybe ( isJust )
-#if __GLASGOW_HASKELL__ >= 7103
+import Data.Maybe (isJust)
 import Data.Either (isLeft)
 import Control.Exception (throwIO, try)
-#endif
 
 testExceptions :: TestEnv -> Assertion
 testExceptions _ = do
@@ -26,12 +24,10 @@ testExceptions _ = do
   let sqlEx :: SomeException = toException sqlError
   assertBool "SqlError is SomePostgreSqlException" $ isJust (fromException sqlEx :: Maybe SomePostgreSqlException)
   assertBool "SqlError is SqlError" $ isJust (fromException sqlEx :: Maybe SqlError)
-#if __GLASGOW_HASKELL__ >= 7103
   eSqlError :: Either SqlError () <- try $ throwIO sqlEx
   assertBool "Can catch SqlError" $ isLeft eSqlError
   eSqlPostgreSqlEx :: Either SomePostgreSqlException () <- try $ throwIO sqlEx
   assertBool "Can catch SomePostgreSqlException from SqlError" $ isLeft eSqlPostgreSqlEx
-#endif
 
   let formatError = FormatError 
         { fmtMessage = ""
@@ -41,12 +37,10 @@ testExceptions _ = do
   let formatEx :: SomeException = toException formatError
   assertBool "FormatError is SomePostgreSqlException" $ isJust (fromException formatEx :: Maybe SomePostgreSqlException)
   assertBool "FormatError is FormatError" $ isJust (fromException formatEx :: Maybe FormatError)
-#if __GLASGOW_HASKELL__ >= 7103
   eFormatError :: Either FormatError () <- try $ throwIO formatEx
   assertBool "Can catch FormatError" $ isLeft eFormatError
   eFormatPostreSqlEx :: Either SomePostgreSqlException () <- try $ throwIO formatEx
   assertBool "Can catch SomePostgreSqlException from FormatError" $ isLeft eFormatPostreSqlEx
-#endif
   
   let queryError = QueryError 
           { qeMessage = ""
@@ -55,12 +49,10 @@ testExceptions _ = do
   let queryEx :: SomeException = toException queryError
   assertBool "QueryError is SomePostgreSqlException" $ isJust (fromException queryEx :: Maybe SomePostgreSqlException)
   assertBool "QueryError is QueryError" $ isJust (fromException queryEx :: Maybe QueryError)
-#if __GLASGOW_HASKELL__ >= 7103
   eQueryError :: Either QueryError () <- try $ throwIO queryEx
   assertBool "Can catch QueryError" $ isLeft eQueryError
   eQueryPostgreSqlEx :: Either SomePostgreSqlException () <- try $ throwIO queryEx
   assertBool "Can catch SomePostgreSqlException from QueryError" $ isLeft eQueryPostgreSqlEx
-#endif
   
   let resultError = Incompatible 
         { errSQLType = ""
@@ -72,10 +64,7 @@ testExceptions _ = do
   let resultEx :: SomeException = toException resultError
   assertBool "ResultError is SomePostgreSqlException" $ isJust (fromException resultEx :: Maybe SomePostgreSqlException)
   assertBool "ResultError is ResultError" $ isJust (fromException resultEx :: Maybe ResultError)
-#if __GLASGOW_HASKELL__ >= 7103 
   eResultEx :: Either ResultError () <- try $ throwIO resultEx 
   assertBool "Can catch ResultError" $ isLeft eResultEx 
   eResultPostgreSqlEx :: Either SomePostgreSqlException () <- try $ throwIO resultEx
   assertBool "Can catch SomePostgreSqlException from ResultError" $ isLeft eResultPostgreSqlEx
-#endif
-

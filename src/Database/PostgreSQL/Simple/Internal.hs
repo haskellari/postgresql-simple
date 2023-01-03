@@ -100,12 +100,8 @@ instance Show SomePostgreSqlException where
   showsPrec :: Int -> SomePostgreSqlException -> ShowS
   showsPrec p (SomePostgreSqlException e) = showsPrec p e
 
-#if __GLASGOW_HASKELL__ >= 7103
 instance Exception SomePostgreSqlException where
   displayException (SomePostgreSqlException e) = displayException e
-#else
-instance Exception SomePostgreSqlException
-#endif
 
 data SqlError = SqlError {
      sqlState       :: ByteString
