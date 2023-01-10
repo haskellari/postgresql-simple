@@ -117,6 +117,7 @@ module Database.PostgreSQL.Simple
     -- * Helper functions
     , formatMany
     , formatQuery
+    , parseTemplate
     ) where
 
 import           Data.ByteString.Builder (Builder, byteString, char8)

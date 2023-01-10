@@ -154,6 +154,7 @@ test-suite test
     Serializable
     Time
     Interval
+    ParsingTemplate
 
   ghc-options:        -threaded
   ghc-options:        -Wall -fno-warn-name-shadowing -fno-warn-unused-do-bind
