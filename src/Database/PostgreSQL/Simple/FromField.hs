@@ -120,7 +120,7 @@ import           Control.Applicative ( Const(Const), (<|>), (<$>), pure, (*>), (
 import           Control.Concurrent.MVar (MVar, newMVar)
 import           Control.Exception (Exception)
 import qualified Data.Aeson as JSON
-import qualified Data.Aeson.Internal as JSON
+import qualified Data.Aeson.Types as JSON
 import qualified Data.Aeson.Parser as JSON (value')
 import           Data.Attoparsec.ByteString.Char8 hiding (Result)
 import           Data.ByteString (ByteString)
