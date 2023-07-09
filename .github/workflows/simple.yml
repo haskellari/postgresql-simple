@@ -26,10 +26,10 @@ jobs:
 
       - name: Set up Haskell
         id: setup-haskell
-        uses: haskell/actions/setup@v1
+        uses: haskell/actions/setup@v2
         with:
           ghc-version: ${{ matrix.ghc }}
-          cabal-version: '3.8.1.0'
+          cabal-version: '3.10.1.0'
 
       - name: Set up PostgreSQL
         uses: ikalnytskyi/action-setup-postgres@v3
