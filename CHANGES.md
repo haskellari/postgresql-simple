@@ -1,3 +1,7 @@
+### Version 0.6.5.1 (2023-07-09)
+
+  * Support `aeson-2.2.0.0`
+
 ### Version 0.6.5 (2022-10-30)
 
   * Add `withConnect`
