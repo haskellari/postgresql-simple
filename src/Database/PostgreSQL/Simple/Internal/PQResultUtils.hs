@@ -76,12 +76,8 @@ finishQueryWith' q result k = do
     PQ.CommandOk     -> queryErr "query resulted in a command response (did you mean to use `execute` or forget a RETURNING?)"
     PQ.CopyOut       -> queryErr "query: COPY TO is not supported"
     PQ.CopyIn        -> queryErr "query: COPY FROM is not supported"
-#if MIN_VERSION_postgresql_libpq(0,9,3)
     PQ.CopyBoth      -> queryErr "query: COPY BOTH is not supported"
-#endif
-#if MIN_VERSION_postgresql_libpq(0,9,2)
     PQ.SingleTuple   -> queryErr "query: single-row mode is not supported"
-#endif
     PQ.BadResponse   -> throwResultError "query" result status
     PQ.NonfatalError -> throwResultError "query" result status
     PQ.FatalError    -> throwResultError "query" result status

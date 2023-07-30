@@ -34,7 +34,6 @@ import           Data.Int (Int64)
 import qualified Data.IntMap as IntMap
 import           Data.IORef
 import           Data.Maybe(fromMaybe)
-import           Data.Monoid
 import           Data.String
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
@@ -490,9 +489,6 @@ instance Alternative Conversion where
                      Errors _ -> (oka <|>) <$> runConversion mb conn
 
 instance Monad Conversion where
-#if !(MIN_VERSION_base(4,8,0))
-   return = pure
-#endif
    m >>= f = Conversion $ \conn -> do
                  oka <- runConversion m conn
                  case oka of

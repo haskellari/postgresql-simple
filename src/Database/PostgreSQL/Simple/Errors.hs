@@ -25,7 +25,6 @@ module Database.PostgreSQL.Simple.Errors
        )
        where
 
-import Control.Applicative
 import Control.Exception as E
 
 import Data.Attoparsec.ByteString.Char8

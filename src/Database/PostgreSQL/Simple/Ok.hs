@@ -72,10 +72,6 @@ instance MonadPlus Ok where
     mplus = (<|>)
 
 instance Monad Ok where
-#if !(MIN_VERSION_base(4,8,0))
-    return = pure
-#endif
-
     Errors es >>= _ = Errors es
     Ok a      >>= f = f a
 
