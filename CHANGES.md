@@ -1,3 +1,7 @@
+### Version 0.7 (2023-07-31)
+
+  * Remove Eq Null instance. (Future `base` may break it, we remove it profilacticly).
+
 ### Version 0.6.5.1 (2023-07-09)
 
   * Support `aeson-2.2.0.0`
