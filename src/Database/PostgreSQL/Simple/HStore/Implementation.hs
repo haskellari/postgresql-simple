@@ -22,9 +22,6 @@ import           Data.ByteString.Builder (Builder, byteString, char8)
 import qualified Data.ByteString.Builder as BU
 import           Data.ByteString.Internal (c2w, w2c)
 import qualified Data.ByteString.Lazy          as BL
-#if !MIN_VERSION_bytestring(0,10,0)
-import qualified Data.ByteString.Lazy.Internal as BL (foldrChunks)
-#endif
 import           Data.Map(Map)
 import qualified Data.Map as Map
 import           Data.Text(Text)
@@ -69,9 +66,6 @@ instance Semigroup HStoreBuilder where
 
 instance Monoid HStoreBuilder where
     mempty = Empty
-#if !(MIN_VERSION_base(4,11,0))
-    mappend = (<>)
-#endif
 
 class ToHStoreText a where
   toHStoreText :: a -> HStoreText

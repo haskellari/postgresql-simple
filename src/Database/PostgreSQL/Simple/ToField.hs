@@ -59,11 +59,7 @@ import qualified Data.Vector as V
 import qualified Database.PostgreSQL.LibPQ as PQ
 import           Database.PostgreSQL.Simple.Time
 import           Data.Scientific (Scientific)
-#if MIN_VERSION_scientific(0,3,0)
 import           Data.Text.Lazy.Builder.Scientific (scientificBuilder)
-#else
-import           Data.Scientific (scientificBuilder)
-#endif
 import           Foreign.C.Types (CUInt(..))
 
 -- | How to render an element when substituting it into a query.

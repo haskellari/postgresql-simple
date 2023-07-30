@@ -1,6 +1,9 @@
-### Version 0.7 (2023-07-31)
+### Version 0.7.0.0 (2023-07-31)
 
   * Remove Eq Null instance. (Future `base` may break it, we remove it profilacticly).
+  * Use `postgresql-libpq >=0.10.0.0`. It includes critical fixes,
+    by using `postgresql-simple >=0.7` you won't get older `postgresql-libpq`.
+  * Drop support for GHC prior 8.6
 
 ### Version 0.6.5.1 (2023-07-09)
 
