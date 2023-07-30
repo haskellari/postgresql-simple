@@ -50,10 +50,6 @@ import           Database.PostgreSQL.Simple.Compat (toByteString)
 data Null = Null
           deriving (Read, Show, Typeable)
 
-instance Eq Null where
-    _ == _ = False
-    _ /= _ = False
-
 -- | A placeholder for the PostgreSQL @DEFAULT@ value.
 data Default = Default
            deriving (Read, Show, Typeable)
