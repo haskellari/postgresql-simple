@@ -154,11 +154,7 @@ import qualified Data.UUID.Types as UUID
 import           Data.Scientific (Scientific)
 import           GHC.Real (infinity, notANumber)
 
-#if MIN_VERSION_aeson(2,1,2)
 import qualified Data.Aeson.Types as JSON
-#else
-import qualified Data.Aeson.Internal as JSON
-#endif
 
 -- | Exception thrown if conversion from a SQL value to a Haskell
 -- value fails.
