@@ -24,7 +24,7 @@ module Database.PostgreSQL.Simple.Internal where
 import           Control.Applicative
 import           Control.Exception
 import           Control.Concurrent.MVar
-import           Control.Monad(MonadPlus(..))
+import           Control.Monad(MonadPlus(..), when)
 import           Data.ByteString(ByteString)
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as B8
@@ -76,6 +76,10 @@ data Connection = Connection {
      connectionHandle  :: {-# UNPACK #-} !(MVar PQ.Connection)
    , connectionObjects :: {-# UNPACK #-} !(MVar TypeInfoCache)
    , connectionTempNameCounter :: {-# UNPACK #-} !(IORef Int64)
+   , connectionMayHaveOrphanedStatement :: {-# UNPACK #-} !(IORef Bool)
+   -- ^ True if there could be a statement running in postgres in this connection, but
+   -- postgresql-simple is not waiting for results from it. This can happen when
+   -- postgresql-simple is interrupted by asynchronous exceptions.
    } deriving (Typeable)
 
 instance Eq Connection where
@@ -239,6 +243,7 @@ connectPostgreSQL connstr = do
           connectionHandle  <- newMVar conn
           connectionObjects <- newMVar (IntMap.empty)
           connectionTempNameCounter <- newIORef 0
+          connectionMayHaveOrphanedStatement <- newIORef False
           let wconn = Connection{..}
           version <- PQ.serverVersion conn
           let settings
@@ -331,43 +336,90 @@ exec conn sql =
           Just res -> return res
 #else
 exec conn sql =
-    withConnection conn $ \h -> do
-        success <- PQ.sendQuery h sql
-        if success
-        then awaitResult h Nothing
-        else throwLibPQError h "PQsendQuery failed"
+    withConnection conn $ \h -> withSocket h $ \socket-> uninterruptibleMask $ \restore -> do
+      -- 1. If postgresql-simple was interrupted when waiting for query results
+      -- before, cancel that query (it may even have completed by now, but that's fine)
+      -- before issuing a new one.
+      restore $ do
+        needsToCancel <- readIORef (connectionMayHaveOrphanedStatement conn)
+        when needsToCancel $ do
+          cancelRunningQuery h socket
+          writeIORef (connectionMayHaveOrphanedStatement conn) False
+
+      -- 2. Ideally, the code that issues the query and waits for results
+      -- should not throw exceptions. That way we know an exception means
+      -- postgresql-simple was interrupted and the query might still be running.
+      -- Still, even if the code throws exceptions for other reasons, it means
+      -- we'll try to cancel a running query later once, which is fairly inocuous
+      -- as long as such exceptions are rare (which they should be).
+      restore (sendQueryAndWaitForResults h socket)
+                  `onException` writeIORef (connectionMayHaveOrphanedStatement conn) True
+        
   where
-    awaitResult h mres = do
-        mfd <- PQ.socket h
-        case mfd of
-          Nothing -> throwIO $! fdError "Database.PostgreSQL.Simple.Internal.exec"
-          Just fd -> do
-             threadWaitRead fd
-             _ <- PQ.consumeInput h  -- FIXME?
-             getResult h mres
+    withSocket h f = do
+      mfd <- PQ.socket h
+      case mfd of
+        Nothing -> throwIO $! fdError "Database.PostgreSQL.Simple.Internal.exec"
+        Just socket -> f socket
+    
+    sendQueryAndWaitForResults h socket = do
+      success <- PQ.sendQuery h sql
+      if success then do
+        consumeUntilNotBusy h socket
+        getResult h Nothing
+      else throwLibPQError h "PQsendQuery failed"
+
+    cancelRunningQuery h socket = do
+      mcncl <- PQ.getCancel h
+      case mcncl of
+        Nothing -> pure ()
+        Just cncl -> do
+          cancelStatus <- PQ.cancel cncl
+          case cancelStatus of
+            Left _ -> PQ.errorMessage h >>= \mmsg -> throwLibPQError h ("Database.PostgreSQL.Simple.Internal.cancelRunningQuery: " <> fromMaybe "Unknown error" mmsg
+                                                            <> "\nIt looks like postgresql-simple was previously interrupted by an exception while waiting for query results."
+                                                            <> " Because of that, before issuing a new query, we tried to cancel that previous query that was interrupted, but failed to do so.")
+            Right () -> do
+              consumeUntilNotBusy h socket
+              waitForNullResult h
+
+    waitForNullResult h = do
+      mres <- PQ.getResult h
+      case mres of
+        Nothing -> pure ()
+        Just _ -> waitForNullResult h
+
+    -- | Waits until results are ready to be fetched.
+    consumeUntilNotBusy h socket = do
+      -- According to https://www.postgresql.org/docs/current/libpq-async.html :
+      -- 1. The isBusy status only changes by calling PQConsumeInput
+      -- 2. In case of errors, "PQgetResult should be called until it returns a null pointer, to allow libpq to process the error information completely"
+      -- 3. Also, "A typical application using these functions will have a main loop that uses select() or poll() ... When the main loop detects input ready, it should call PQconsumeInput to read the input. It can then call PQisBusy, followed by PQgetResult if PQisBusy returns false (0)"
+      busy <- PQ.isBusy h
+      when busy $ do
+        threadWaitRead socket
+        someError <- not <$> PQ.consumeInput h
+        when someError $ PQ.errorMessage h >>= \mmsg -> throwLibPQError h ("Database.PostgreSQL.Simple.Internal.consumeUntilNotBusy: " <> fromMaybe "Unknown error" mmsg)
+        consumeUntilNotBusy h socket
 
     getResult h mres = do
-        isBusy <- PQ.isBusy h
-        if isBusy
-        then awaitResult h mres
-        else do
-          mres' <- PQ.getResult h
-          case mres' of
-            Nothing -> case mres of
-                         Nothing  -> throwLibPQError h "PQgetResult returned no results"
-                         Just res -> return res
-            Just res -> do
-                status <- PQ.resultStatus res
-                case status of
-                   -- FIXME: handle PQ.CopyBoth and PQ.SingleTuple
-                   PQ.EmptyQuery    -> getResult h mres'
-                   PQ.CommandOk     -> getResult h mres'
-                   PQ.TuplesOk      -> getResult h mres'
-                   PQ.CopyOut       -> return res
-                   PQ.CopyIn        -> return res
-                   PQ.BadResponse   -> getResult h mres'
-                   PQ.NonfatalError -> getResult h mres'
-                   PQ.FatalError    -> getResult h mres'
+        mres' <- PQ.getResult h
+        case mres' of
+          Nothing -> case mres of
+                        Nothing  -> throwLibPQError h "PQgetResult returned no results"
+                        Just res -> return res
+          Just res -> do
+              status <- PQ.resultStatus res
+              case status of
+                  -- FIXME: handle PQ.CopyBoth and PQ.SingleTuple
+                  PQ.EmptyQuery    -> getResult h mres'
+                  PQ.CommandOk     -> getResult h mres'
+                  PQ.TuplesOk      -> getResult h mres'
+                  PQ.CopyOut       -> return res
+                  PQ.CopyIn        -> return res
+                  PQ.BadResponse   -> getResult h mres'
+                  PQ.NonfatalError -> getResult h mres'
+                  PQ.FatalError    -> getResult h mres'
 #endif
 
 -- | A version of 'execute' that does not perform query substitution.
@@ -451,6 +503,7 @@ newNullConnection = do
     connectionHandle  <- newMVar =<< PQ.newNullConnection
     connectionObjects <- newMVar IntMap.empty
     connectionTempNameCounter <- newIORef 0
+    connectionMayHaveOrphanedStatement <- newIORef False
     return Connection{..}
 
 data Row = Row {
