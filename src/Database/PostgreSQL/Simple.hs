@@ -108,11 +108,9 @@ module Database.PostgreSQL.Simple
     -- * Modifications that return results
     , returning
     , returningWith
---    , Base.insertID
     -- * Transaction handling
     , withTransaction
     , withSavepoint
---    , Base.autocommit
     , begin
     , commit
     , rollback
