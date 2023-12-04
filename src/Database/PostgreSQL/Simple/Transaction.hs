@@ -25,7 +25,6 @@ module Database.PostgreSQL.Simple.Transaction
     , defaultTransactionMode
     , defaultIsolationLevel
     , defaultReadWriteMode
---    , Base.autocommit
     , begin
     , beginLevel
     , beginMode
