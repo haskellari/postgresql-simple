@@ -103,6 +103,9 @@ module Database.PostgreSQL.Simple
     , forEachWith
     , forEachWith_
     , returningWith
+    -- ** Streaming with single row mode
+    , foldSingleRowModeWith
+    , foldSingleRowModeWith_
     -- * Statements that do not return results
     , execute
     , execute_
@@ -123,6 +126,7 @@ module Database.PostgreSQL.Simple
 import           Data.ByteString.Builder (Builder, byteString, char8)
 import           Control.Applicative ((<$>))
 import           Control.Exception as E
+import           Control.Monad (unless)
 import           Data.ByteString (ByteString)
 import           Data.Int (Int64)
 import           Data.List (intersperse)
@@ -507,6 +511,57 @@ foldWithOptionsAndParser :: (ToRow params)
 foldWithOptionsAndParser opts parser conn template qs a f = do
     q <- formatQuery conn template qs
     doFold opts parser conn template (Query q) a f
+
+-- | Perform a @SELECT@ or other SQL query that is expected to return
+-- results. Results are streamed incrementally from the server, and
+-- consumed via a left fold.
+--
+-- This fold is /not/ strict. The stream consumer is responsible for
+-- forcing the evaluation of its result to avoid space leaks.
+--
+-- Unlike 'fold' and friends, this is implemented using
+-- <https://www.postgresql.org/docs/current/static/libpq-single-row-mode.html single row mode>
+-- instead of a cursor.
+-- You cannot execute other queries while streaming is in progress.
+foldSingleRowModeWith :: (ToRow params) => RowParser row -> Connection -> Query -> params -> a -> (a -> row -> IO a) -> IO a
+foldSingleRowModeWith parser conn template qs a0 f = do
+    q <- formatQuery conn template qs
+    doFoldSingleRow parser conn q a0 f
+
+-- | A version of 'foldSingleRowModeWith' that does not perform query substitution.
+foldSingleRowModeWith_ :: RowParser row -> Connection -> Query -> a -> (a -> row -> IO a) -> IO a
+foldSingleRowModeWith_ parser conn (Query q) a0 f =
+    doFoldSingleRow parser conn q a0 f
+
+doFoldSingleRow :: RowParser row -> Connection -> ByteString -> a -> (a -> row -> IO a) -> IO a
+doFoldSingleRow parser conn q a0 f = do
+    queryOk <- withConnection conn $ \h -> PQ.sendQuery h q
+    unless queryOk $ do
+        mmsg <- withConnection conn PQ.errorMessage
+        throwIO $ QueryError (maybe "" B.unpack mmsg) (Query q)
+    srmOk <- withConnection conn PQ.setSingleRowMode
+    unless srmOk $
+        throwIO $ fatalError "could not activate single row mode"
+    loop a0 `finally` withConnection conn consumeResults
+   where
+     loop a = do
+          mresult <- withConnection conn PQ.getResult
+          case mresult of
+            Nothing -> pure a
+            Just result -> do
+                status <- PQ.resultStatus result
+                case status of
+                  PQ.SingleTuple -> do
+                      ncols <- PQ.nfields result
+                      row <- getRowWith parser 0 ncols conn result
+                      a' <- f a row
+                      loop a'
+                  PQ.TuplesOk -> do
+                      nrows <- PQ.ntuples result
+                      if nrows == 0
+                      then pure a
+                      else throwResultError "doFoldSingleRow" result status
+                  _ -> throwResultError "doFoldSingleRow" result status
 
 -- | A version of 'fold' that does not perform query substitution.
 fold_ :: (FromRow r) =>
