@@ -221,7 +221,11 @@ class FromField a where
 --   finally query the database's meta-schema.
 
 typename :: Field -> Conversion ByteString
-typename field = typname <$> typeInfo field
+typename field = Conversion $ \conn -> do
+  status <- PQ.resultStatus (result field)
+  case status of
+    PQ.SingleTuple -> pure (Ok "unknown type")
+    _              -> runConversion (typname <$> typeInfo field) conn
 
 typeInfo :: Field -> Conversion TypeInfo
 typeInfo Field{..} = Conversion $ \conn -> do

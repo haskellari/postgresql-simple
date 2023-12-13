@@ -635,3 +635,10 @@ breakOnSingleQuestionMark b = go (B8.empty, b)
                 go2 ('?', t2) = go (noQ `B8.snoc` '?',t2)
                 -- Anything else means
                 go2 _ = tup
+
+consumeResults :: PQ.Connection -> IO ()
+consumeResults pqconn = do
+    mres <- PQ.getResult pqconn
+    case mres of
+      Nothing -> return ()
+      Just _  -> consumeResults pqconn
