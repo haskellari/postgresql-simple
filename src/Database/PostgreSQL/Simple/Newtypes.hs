@@ -37,7 +37,7 @@ import qualified Data.Aeson as Aeson
 --  
 --  @since 0.6.3
 newtype Aeson a = Aeson a
-  deriving (Eq, Show, Read, Typeable, Functor)
+  deriving (Eq, Ord, Show, Read, Typeable, Functor)
 
 getAeson :: Aeson a -> a
 getAeson (Aeson a) = a
