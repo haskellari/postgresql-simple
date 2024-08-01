@@ -32,6 +32,7 @@ import           Data.ByteString.Builder
                    , wordDec, word8Dec, word16Dec, word32Dec, word64Dec
                    , floatDec, doubleDec
                    )
+import           Data.ByteString.Builder.Scientific (scientificBuilder)
 import Data.Functor.Identity (Identity(Identity))
 import Data.Int (Int8, Int16, Int32, Int64)
 import Data.List (intersperse)
@@ -51,7 +52,6 @@ import qualified Data.CaseInsensitive as CI
 import qualified Data.Text as ST
 import qualified Data.Text.Encoding as ST
 import qualified Data.Text.Lazy as LT
-import qualified Data.Text.Lazy.Builder as LT
 import           Data.UUID.Types   (UUID)
 import qualified Data.UUID.Types as UUID
 import           Data.Vector (Vector)
@@ -59,7 +59,6 @@ import qualified Data.Vector as V
 import qualified Database.PostgreSQL.LibPQ as PQ
 import           Database.PostgreSQL.Simple.Time
 import           Data.Scientific (Scientific)
-import           Data.Text.Lazy.Builder.Scientific (scientificBuilder)
 import           Foreign.C.Types (CUInt(..))
 
 -- | How to render an element when substituting it into a query.
@@ -195,7 +194,7 @@ instance ToField Double where
     {-# INLINE toField #-}
 
 instance ToField Scientific where
-    toField x = toField (LT.toLazyText (scientificBuilder x))
+    toField = Plain . scientificBuilder
     {-# INLINE toField #-}
 
 instance ToField (Binary SB.ByteString) where
