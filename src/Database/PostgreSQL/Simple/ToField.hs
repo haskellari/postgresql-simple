@@ -21,6 +21,8 @@ module Database.PostgreSQL.Simple.ToField
     , ToField(..)
     , toJSONField
     , inQuotes
+    , inParens
+    , parenNegatives
     ) where
 
 import Control.Applicative (Const(Const))
@@ -136,65 +138,65 @@ instance ToField Bool where
     {-# INLINE toField #-}
 
 instance ToField Int8 where
-    toField = Plain . int8Dec
+    toField = Plain . parenNegatives int8Dec
     {-# INLINE toField #-}
 
 instance ToField Int16 where
-    toField = Plain . int16Dec
+    toField = Plain . parenNegatives int16Dec
     {-# INLINE toField #-}
 
 instance ToField Int32 where
-    toField = Plain . int32Dec
+    toField = Plain . parenNegatives int32Dec
     {-# INLINE toField #-}
 
 instance ToField Int where
-    toField = Plain . intDec
+    toField = Plain . parenNegatives intDec
     {-# INLINE toField #-}
 
 instance ToField Int64 where
-    toField = Plain . int64Dec
+    toField = Plain . parenNegatives int64Dec
     {-# INLINE toField #-}
 
 instance ToField Integer where
-    toField = Plain . integerDec
+    toField = Plain . parenNegatives integerDec
     {-# INLINE toField #-}
 
 instance ToField Word8 where
-    toField = Plain . word8Dec
+    toField = Plain . parenNegatives word8Dec
     {-# INLINE toField #-}
 
 instance ToField Word16 where
-    toField = Plain . word16Dec
+    toField = Plain . parenNegatives word16Dec
     {-# INLINE toField #-}
 
 instance ToField Word32 where
-    toField = Plain . word32Dec
+    toField = Plain . parenNegatives word32Dec
     {-# INLINE toField #-}
 
 instance ToField Word where
-    toField = Plain . wordDec
+    toField = Plain . parenNegatives wordDec
     {-# INLINE toField #-}
 
 instance ToField Word64 where
-    toField = Plain . word64Dec
+    toField = Plain . parenNegatives word64Dec
     {-# INLINE toField #-}
 
 instance ToField PQ.Oid where
-    toField = Plain . \(PQ.Oid (CUInt x)) -> word32Dec x
+    toField = Plain . \(PQ.Oid (CUInt x)) -> parenNegatives word32Dec x
     {-# INLINE toField #-}
 
 instance ToField Float where
     toField v | isNaN v || isInfinite v = Plain (inQuotes (floatDec v))
-              | otherwise               = Plain (floatDec v)
+              | otherwise               = Plain (parenNegatives floatDec v)
     {-# INLINE toField #-}
 
 instance ToField Double where
     toField v | isNaN v || isInfinite v = Plain (inQuotes (doubleDec v))
-              | otherwise               = Plain (doubleDec v)
+              | otherwise               = Plain (parenNegatives doubleDec v)
     {-# INLINE toField #-}
 
 instance ToField Scientific where
-    toField = Plain . scientificBuilder
+    toField = Plain . parenNegatives scientificBuilder
     {-# INLINE toField #-}
 
 instance ToField (Binary SB.ByteString) where
@@ -327,6 +329,26 @@ toJSONField = toField . JSON.encode
 inQuotes :: Builder -> Builder
 inQuotes b = quote `mappend` b `mappend` quote
   where quote = char8 '\''
+
+-- | Surround a string with parentheses: \"@( )@\".
+--
+-- This function /does not/ perform any other escaping.
+inParens :: Builder -> Builder
+inParens b = char8 '(' `mappend` b `mappend` char8 ')'
+
+-- | If @n@ is negative, surround its rendered value in parentheses: \"@(-3)@\".
+--
+-- This is necessary because in PostgreSQL, @-@ is a unary operator that has
+-- lower precedence than the @::@ operator, and that can cause problems at the
+-- edge of allowed ranges.
+--
+-- For example, @-32768::int2@ is parsed as @-(32768::int2)@, which throws an
+-- "out of range" error, even though @(-32768)::int2@ is accepted.
+--
+-- For types with signed zeros, @-0@ is not parenthesized.
+parenNegatives :: (Num a, Ord a) => (a -> Builder) -> a -> Builder
+parenNegatives f n | n < 0     = inParens (f n)
+                   | otherwise = f n
 
 interleaveFoldr :: (a -> [b] -> [b]) -> b -> [b] -> [a] -> [b]
 interleaveFoldr f b bs' as = foldr (\a bs -> b : f a bs) bs' as
