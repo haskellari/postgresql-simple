@@ -86,6 +86,7 @@ tests env = testGroup "tests"
     , testCase "3-ary generic"        . testGeneric3
     , testCase "Timeout"              . testTimeout
     , testCase "Exceptions"           . testExceptions
+    , testCase "Paren negatives"      . testParenNegatives
     ]
 
 testBytea :: TestEnv -> TestTree
@@ -536,6 +537,19 @@ testDouble TestEnv{..} = do
     [Only (x :: Double)] <- query_ conn "SELECT '-Infinity'::float8"
     x @?= (-1 / 0)
 
+testParenNegatives :: TestEnv -> Assertion
+testParenNegatives TestEnv{..} = do
+    [Only (x :: Int)] <- query conn "SELECT ?::int2" (Only (-32768 :: Int))
+    x @?= -32768
+    [Only (x :: Int)] <- query conn "SELECT ?::int2" (Only (-32768.4 :: Double))
+    x @?= -32768
+    [(x :: Int, y :: Int)] <-
+      query conn "SELECT * FROM ? tbl"
+        (Only $ Values ["int2", "int2"]
+                       [(-32768 :: Integer, -32768.4 :: Float)]
+        )
+    x @?= -32768
+    y @?= -32768
 
 testGeneric1 :: TestEnv -> Assertion
 testGeneric1 TestEnv{..} = do
