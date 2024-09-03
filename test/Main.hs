@@ -14,6 +14,7 @@ import Common
 import Database.PostgreSQL.Simple.Copy
 import Database.PostgreSQL.Simple.ToField (ToField)
 import Database.PostgreSQL.Simple.FromField (FromField)
+import Database.PostgreSQL.Simple.FromRow (FromRow(..))
 import Database.PostgreSQL.Simple.HStore
 import Database.PostgreSQL.Simple.Newtypes
 import Database.PostgreSQL.Simple.Internal (breakOnSingleQuestionMark)
@@ -63,6 +64,7 @@ tests env = testGroup "tests"
     [ testBytea
     , testCase "ExecuteMany"          . testExecuteMany
     , testCase "Fold"                 . testFold
+    , testCase "FoldSingleRow"        . testFoldSingleRow
     , testCase "Notify"               . testNotify
     , testCase "Serializable"         . testSerializable
     , testCase "Time"                 . testTime
@@ -182,6 +184,53 @@ testFold TestEnv{..} = do
     --  * Fold in a transaction after a previous fold has been performed
     --
     --  * Nested fold
+
+    return ()
+
+testFoldSingleRow :: TestEnv -> Assertion
+testFoldSingleRow TestEnv{..} = do
+    xs <- foldSingleRowModeWith_ fromRow conn "SELECT 1 WHERE FALSE"
+            [] $ \xs (Only x) -> return (x:xs)
+    xs @?= ([] :: [Int])
+
+    xs <- foldSingleRowModeWith_ fromRow conn "SELECT generate_series(1,10000)"
+            [] $ \xs (Only x) -> return (x:xs)
+    reverse xs @?= ([1..10000] :: [Int])
+
+    ref <- newIORef []
+    foldSingleRowModeWith fromRow conn "SELECT * FROM generate_series(1,?) a, generate_series(1,?) b"
+      (100 :: Int, 50 :: Int) () $ \() (a :: Int, b :: Int)-> do
+        xs <- readIORef ref
+        writeIORef ref $! (a,b):xs
+    xs <- readIORef ref
+    reverse xs @?= [(a,b) | b <- [1..50], a <- [1..100]]
+
+    -- Make sure it propagates our exception
+    ref <- newIORef []
+    True <- expectError (== TestException) $
+              foldSingleRowModeWith_ fromRow conn "SELECT generate_series(1,10)" () $ \() (Only a) ->
+                if a == 5 then do
+                  throwIO TestException
+                else do
+                  xs <- readIORef ref
+                  writeIORef ref $! (a :: Int) : xs
+    xs <- readIORef ref
+    reverse xs @?= [1..4]
+    -- and didn't leave the connection in a bad state.
+    xs <- foldSingleRowModeWith_ fromRow conn "SELECT 1"
+            [] $ \xs (Only x) -> return (x:xs)
+    xs @?= ([1] :: [Int])
+
+    -- When in single row mode, we cannot make additional queries while
+    -- handling errors. We still want to emit vaguely sensible errors when
+    -- given the wrong parser, not "another command is already in progress".
+    execute_ conn "DROP TYPE IF EXISTS foo; CREATE TYPE foo AS ENUM ('foo', 'bar');"
+    expectError (\e -> case e of
+                         Incompatible { errSQLField = "foo"
+                                      , errMessage = "types incompatible" } -> True
+                         _ -> False) $
+        foldSingleRowModeWith_ fromRow conn "SELECT 'foo'::foo" () $
+            \() (Only x) -> print (x :: Int)
 
     return ()
 

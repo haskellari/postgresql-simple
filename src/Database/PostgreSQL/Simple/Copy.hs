@@ -261,9 +261,3 @@ getCopyCommandTag funcName pqconn = do
     errCmdStatusFmt = B.unpack funcName ++ ": failed to parse command status"
 
 
-consumeResults :: PQ.Connection -> IO ()
-consumeResults pqconn = do
-    mres <- PQ.getResult pqconn
-    case mres of
-      Nothing -> return ()
-      Just _  -> consumeResults pqconn
