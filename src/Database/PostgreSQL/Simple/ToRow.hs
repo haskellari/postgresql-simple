@@ -19,6 +19,7 @@
 module Database.PostgreSQL.Simple.ToRow
     (
       ToRow(..)
+    , GToRow
     ) where
 
 import Database.PostgreSQL.Simple.ToField (Action(..), ToField(..))
