@@ -94,7 +94,6 @@ module Database.PostgreSQL.Simple
     , foldWithOptions_
     , forEach
     , forEach_
-    , returning
     -- ** Queries that stream results taking a parser as an argument
     , foldWith
     , foldWithOptionsAndParser
@@ -102,16 +101,16 @@ module Database.PostgreSQL.Simple
     , foldWithOptionsAndParser_
     , forEachWith
     , forEachWith_
-    , returningWith
     -- * Statements that do not return results
     , execute
     , execute_
     , executeMany
---    , Base.insertID
+    -- * Modifications that return results
+    , returning
+    , returningWith
     -- * Transaction handling
     , withTransaction
     , withSavepoint
---    , Base.autocommit
     , begin
     , commit
     , rollback
