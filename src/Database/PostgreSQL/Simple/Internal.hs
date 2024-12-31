@@ -1,6 +1,7 @@
 {-# LANGUAGE  CPP, BangPatterns, DoAndIfThenElse, RecordWildCards  #-}
 {-# LANGUAGE  DeriveDataTypeable, DeriveGeneric                    #-}
 {-# LANGUAGE  GeneralizedNewtypeDeriving                           #-}
+{-# LANGUAGE  DeriveAnyClass #-}
 {-# LANGUAGE  ExistentialQuantification                            #-}
 {-# LANGUAGE  InstanceSigs                                         #-}
 
@@ -27,6 +28,7 @@ import           Control.Applicative
 import           Control.Exception
 import           Control.Concurrent.MVar
 import           Control.Monad(MonadPlus(..))
+import           Data.Aeson (FromJSON)
 import           Data.ByteString(ByteString)
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as B8
@@ -148,7 +150,7 @@ data ConnectInfo = ConnectInfo {
     , connectUser :: String
     , connectPassword :: String
     , connectDatabase :: String
-    } deriving (Generic,Eq,Read,Show,Typeable)
+    } deriving (Generic,Eq,Read,Show,Typeable,FromJSON)
 
 -- | Default information for setting up a connection.
 --
