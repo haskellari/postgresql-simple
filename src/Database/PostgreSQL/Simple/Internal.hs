@@ -148,7 +148,18 @@ data ConnectInfo = ConnectInfo {
     , connectUser :: String
     , connectPassword :: String
     , connectDatabase :: String
-    } deriving (Generic,Eq,Read,Show,Typeable)
+    } deriving (Generic,Eq,Read,Typeable)
+
+data ConnectInfoRedacted = ConnectInfoRedacted {
+      connectRedactedHost :: String
+    , connectRedactedPort :: Word16
+    , connectRedactedUser :: String
+    , connectRedactedDatabase :: String
+    } deriving Show
+
+instance Show ConnectInfo where
+  show x = show $
+    ConnectInfoRedacted (connectHost x) (connectPort x) (connectUser x) (connectDatabase x)
 
 -- | Default information for setting up a connection.
 --
