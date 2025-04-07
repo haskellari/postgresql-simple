@@ -14,10 +14,9 @@ jobs:
     strategy:
       matrix:
         os: [macos-latest, windows-latest]
-        ghc: ['9.4.8','9.6.6','9.8.2','9.10.1']
+        ghc: ["9.4.8", "9.6.6", "9.8.2", "9.10.1", "9.12.2"]
       fail-fast: false
-    timeout-minutes:
-      60
+    timeout-minutes: 60
     steps:
       - name: Set git to use LF
         run: |
@@ -29,7 +28,7 @@ jobs:
         uses: haskell-actions/setup@v2
         with:
           ghc-version: ${{ matrix.ghc }}
-          cabal-version: '3.12.1.0'
+          cabal-version: "3.12.1.0"
 
       - name: Set up PostgreSQL
         uses: ikalnytskyi/action-setup-postgres@v6
