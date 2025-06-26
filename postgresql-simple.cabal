@@ -48,6 +48,7 @@ library
     Database.PostgreSQL.Simple.HStore
     Database.PostgreSQL.Simple.HStore.Internal
     Database.PostgreSQL.Simple.Internal
+    Database.PostgreSQL.Simple.Interval
     Database.PostgreSQL.Simple.LargeObjects
     Database.PostgreSQL.Simple.Newtypes
     Database.PostgreSQL.Simple.Notification
@@ -136,6 +137,7 @@ test-suite test
     Notify
     Serializable
     Time
+    Database.PostgreSQL.Simple.IntervalTest
 
   ghc-options:        -threaded
   ghc-options:        -Wall -fno-warn-name-shadowing -fno-warn-unused-do-bind
@@ -149,6 +151,7 @@ test-suite test
 
   build-depends:
       aeson
+    , attoparsec
     , base
     , base16-bytestring
     , bytestring

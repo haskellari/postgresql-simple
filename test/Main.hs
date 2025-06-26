@@ -56,6 +56,7 @@ import Serializable
 import Time
 import Interval
 import Exception (testExceptions)
+import qualified Database.PostgreSQL.Simple.IntervalTest as IntervalTest
 
 tests :: TestEnv -> TestTree
 tests env = testGroup "tests"
@@ -86,6 +87,7 @@ tests env = testGroup "tests"
     , testCase "3-ary generic"        . testGeneric3
     , testCase "Timeout"              . testTimeout
     , testCase "Exceptions"           . testExceptions
+    , IntervalTest.testTree
     ]
 
 testBytea :: TestEnv -> TestTree
