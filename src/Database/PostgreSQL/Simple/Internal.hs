@@ -396,6 +396,7 @@ exec conn sql =
                    PQ.BadResponse   -> getResult h mres'
                    PQ.NonfatalError -> getResult h mres'
                    PQ.FatalError    -> getResult h mres'
+                   _ -> error "incomplete match"
 #endif
 
 -- | A version of 'execute' that does not perform query substitution.
@@ -431,6 +432,7 @@ finishExecute _conn q result = do
       PQ.BadResponse   -> throwResultError "execute" result status
       PQ.NonfatalError -> throwResultError "execute" result status
       PQ.FatalError    -> throwResultError "execute" result status
+      _                -> throwResultError "execute: TODO" result status
     where
      mkInteger str = B8.foldl' delta 0 str
                 where

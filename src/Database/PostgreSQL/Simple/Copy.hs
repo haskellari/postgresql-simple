@@ -91,6 +91,7 @@ doCopy funcName conn template q = do
       PQ.BadResponse   -> throwResultError funcName result status
       PQ.NonfatalError -> throwResultError funcName result status
       PQ.FatalError    -> throwResultError funcName result status
+      _                -> throwResultError funcName result status -- TODO
 
 data CopyOutResult
    = CopyOutRow  !B.ByteString         -- ^ Data representing either exactly
