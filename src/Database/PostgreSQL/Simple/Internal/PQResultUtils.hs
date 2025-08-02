@@ -81,6 +81,7 @@ finishQueryWith' q result k = do
     PQ.BadResponse   -> throwResultError "query" result status
     PQ.NonfatalError -> throwResultError "query" result status
     PQ.FatalError    -> throwResultError "query" result status
+    _                -> throwResultError "query: TODO" result status
   where
     queryErr msg = throwIO $ QueryError msg q
 
