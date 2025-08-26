@@ -325,11 +325,11 @@ instance FromField Char where
 
 -- | int2
 instance FromField Int16 where
-    fromField = attoFieldParser ok16 $ signed decimal
+    fromField = attoFieldParser ok16 (eq TI.int8Oid \/ eq TI.int4Oid) $ signed decimal
 
 -- | int2, int4
 instance FromField Int32 where
-    fromField = attoFieldParser ok32 $ signed decimal
+    fromField = attoFieldParser ok32 (eq TI.int8Oid) $ signed decimal
 
 #if WORD_SIZE_IN_BITS < 64
 -- | int2, int4,  and if compiled as 64-bit code,  int8 as well.
@@ -339,36 +339,40 @@ instance FromField Int32 where
 -- This library was compiled as 64-bit code.
 #endif
 instance FromField Int where
-    fromField = attoFieldParser okInt $ signed decimal
+    fromField = attoFieldParser okInt noLoss $ signed decimal
 
 -- | int2, int4, int8
 instance FromField Int64 where
-    fromField = attoFieldParser ok64 $ signed decimal
+    fromField = attoFieldParser ok64 noLoss $ signed decimal
 
 -- | int2, int4, int8
 instance FromField Integer where
-    fromField = attoFieldParser ok64 $ signed decimal
+    fromField = attoFieldParser ok64 noLoss $ signed decimal
 
 -- | int2, float4    (Uses attoparsec's 'double' routine,  for
 --   better accuracy convert to 'Scientific' or 'Rational' first)
 instance FromField Float where
-    fromField = attoFieldParser ok (realToFrac <$> pg_double)
-      where ok = eq TI.float4Oid \/ eq TI.int2Oid
+    fromField = attoFieldParser ok lossy (realToFrac <$> pg_double)
+      where 
+        ok = eq TI.float4Oid \/ eq TI.int2Oid
+        lossy = eq TI.numericOid \/ eq TI.float8Oid
 
 -- | int2, int4, float4, float8  (Uses attoparsec's 'double' routine,  for
 --   better accuracy convert to 'Scientific' or 'Rational' first)
 instance FromField Double where
-    fromField = attoFieldParser ok pg_double
-      where ok = eq TI.float4Oid \/ eq TI.float8Oid \/ eq TI.int2Oid \/ eq TI.int4Oid
+    fromField = attoFieldParser ok lossy pg_double
+      where 
+        ok = eq TI.float4Oid \/ eq TI.float8Oid \/ eq TI.int2Oid \/ eq TI.int4Oid
+        lossy = eq TI.numericOid
 
 -- | int2, int4, int8, float4, float8, numeric
 instance FromField (Ratio Integer) where
-    fromField = attoFieldParser ok pg_rational
+    fromField = attoFieldParser ok noLoss pg_rational
       where ok = eq TI.float4Oid \/ eq TI.float8Oid \/ eq TI.int2Oid \/ eq TI.int4Oid \/ eq TI.int8Oid \/  eq TI.numericOid
 
 -- | int2, int4, int8, float4, float8, numeric
 instance FromField Scientific where
-     fromField = attoFieldParser ok rational
+     fromField = attoFieldParser ok noLoss rational
       where ok = eq TI.float4Oid \/ eq TI.float8Oid \/ eq TI.int2Oid \/ eq TI.int4Oid \/ eq TI.int8Oid \/  eq TI.numericOid
 
 unBinary :: Binary t -> t
@@ -392,11 +396,11 @@ pg_rational
 instance FromField SB.ByteString where
     fromField f dat = if typeOid f == TI.byteaOid
                       then unBinary <$> fromField f dat
-                      else doFromField f okText' pure dat
+                      else doFromField f okText' noLoss pure dat
 
 -- | oid
 instance FromField PQ.Oid where
-    fromField f dat = PQ.Oid <$> attoFieldParser (== TI.oidOid) decimal f dat
+    fromField f dat = PQ.Oid <$> attoFieldParser (== TI.oidOid) noLoss decimal f dat
 
 -- | bytea, name, text, \"char\", bpchar, varchar, unknown
 instance FromField LB.ByteString where
@@ -411,8 +415,8 @@ unescapeBytea f str' = case unsafeDupablePerformIO (PQ.unescapeBytea str') of
 -- | bytea
 instance FromField (Binary SB.ByteString) where
     fromField f dat = case format f of
-      PQ.Text   -> doFromField f okBinary (unescapeBytea f) dat
-      PQ.Binary -> doFromField f okBinary (pure . Binary) dat
+      PQ.Text   -> doFromField f okBinary noLoss (unescapeBytea f) dat
+      PQ.Binary -> doFromField f okBinary noLoss (pure . Binary) dat
 
 -- | bytea
 instance FromField (Binary LB.ByteString) where
@@ -420,7 +424,7 @@ instance FromField (Binary LB.ByteString) where
 
 -- | name, text, \"char\", bpchar, varchar
 instance FromField ST.Text where
-    fromField f = doFromField f okText $ (either left pure . ST.decodeUtf8')
+    fromField f = doFromField f okText noLoss $ (either left pure . ST.decodeUtf8')
     -- FIXME:  check character encoding
 
 -- | name, text, \"char\", bpchar, varchar
@@ -647,6 +651,11 @@ okInt = ok32
 okInt = ok64
 #endif
 
+type Lossy  = PQ.Oid -> Bool -- Represents lossy conversion, e.g. SQL NUMERIC to Haskell Double
+
+noLoss :: Lossy
+noLoss = const False
+
 -- | eq and \/ are used to imlement what Macro stuff did,
 -- i.e. mkCompats and inlineTypoid
 eq :: PQ.Oid -> PQ.Oid -> Bool
@@ -661,12 +670,16 @@ f \/ g = \x -> f x || g x
 {-# INLINE (\/) #-}
 
 doFromField :: forall a . (Typeable a)
-          => Field -> Compat -> (ByteString -> Conversion a)
+          => Field 
+          -> Compat
+          -> Lossy 
+          -> (ByteString -> Conversion a)
           -> Maybe ByteString -> Conversion a
-doFromField f isCompat cvt (Just bs)
+doFromField f isCompat isLossy cvt (Just bs)
     | isCompat (typeOid f) = cvt bs
+    | isLossy (typeOid f) = returnError Incompatible f "types incompatible (lossy conversion)"
     | otherwise = returnError Incompatible f "types incompatible"
-doFromField f _ _ _ = returnError UnexpectedNull f ""
+doFromField f _ _ _ _ = returnError UnexpectedNull f ""
 
 
 -- | Given one of the constructors from 'ResultError',  the field,
@@ -696,10 +709,12 @@ returnError mkErr f msg = do
 attoFieldParser :: forall a. (Typeable a)
      => (PQ.Oid -> Bool)
      -- ^ Predicate for whether the postgresql type oid is compatible with this parser
+     -> (PQ.Oid -> Bool) 
+     -- ^ Predicate for whether parsing this postgresql type oid would result in a loss of information
      -> Parser a
      -- ^ An attoparsec parser.
      -> FieldParser a
-attoFieldParser types p0 f dat = doFromField f types (go p0) dat
+attoFieldParser types lossy p0 f dat = doFromField f types lossy (go p0) dat
   where
     go :: Parser a -> ByteString -> Conversion a
     go p s =
