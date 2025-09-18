@@ -153,6 +153,7 @@ import           Data.UUID.Types   (UUID)
 import qualified Data.UUID.Types as UUID
 import           Data.Scientific (Scientific)
 import           GHC.Real (infinity, notANumber)
+import           GHC.Natural (Natural)
 
 import qualified Data.Aeson.Types as JSON
 
@@ -348,6 +349,10 @@ instance FromField Int64 where
 -- | int2, int4, int8
 instance FromField Integer where
     fromField = attoFieldParser ok64 $ signed decimal
+
+-- | int2, int4, int8 (non-negative only)
+instance FromField Natural where
+  fromField = attoFieldParser ok64 decimal
 
 -- | int2, float4    (Uses attoparsec's 'double' routine,  for
 --   better accuracy convert to 'Scientific' or 'Rational' first)

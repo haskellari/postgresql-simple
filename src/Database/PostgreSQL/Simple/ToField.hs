@@ -61,6 +61,7 @@ import           Database.PostgreSQL.Simple.Time
 import           Data.Scientific (Scientific)
 import           Data.Text.Lazy.Builder.Scientific (scientificBuilder)
 import           Foreign.C.Types (CUInt(..))
+import           GHC.Natural (Natural)
 
 -- | How to render an element when substituting it into a query.
 data Action =
@@ -158,6 +159,10 @@ instance ToField Int64 where
 
 instance ToField Integer where
     toField = Plain . integerDec
+    {-# INLINE toField #-}
+
+instance ToField Natural where
+    toField = Plain . integerDec . toInteger
     {-# INLINE toField #-}
 
 instance ToField Word8 where

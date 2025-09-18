@@ -48,6 +48,7 @@ import System.FilePath
 import System.Timeout(timeout)
 import Data.Time.Compat (getCurrentTime, diffUTCTime)
 import System.Environment (getEnvironment)
+import GHC.Natural (Natural)
 
 import Test.Tasty
 import Test.Tasty.Golden
@@ -86,6 +87,7 @@ tests env = testGroup "tests"
     , testCase "3-ary generic"        . testGeneric3
     , testCase "Timeout"              . testTimeout
     , testCase "Exceptions"           . testExceptions
+    , testCase "Natural"               . testNatural
     ]
 
 testBytea :: TestEnv -> TestTree
@@ -535,6 +537,23 @@ testDouble TestEnv{..} = do
     x @?= (1 / 0)
     [Only (x :: Double)] <- query_ conn "SELECT '-Infinity'::float8"
     x @?= (-1 / 0)
+
+
+testNatural :: TestEnv -> Assertion
+testNatural TestEnv{..} = do
+    -- round-trip zero and positive values via parameter substitution
+    roundTrip 0
+    roundTrip 1
+    roundTrip 12345678901234567890
+    -- selecting a negative value should fail for Natural
+    True <- expectError (\(_ :: SomeException) -> True) $
+      (query_ conn "SELECT (-1)::bigint" :: IO [Only Natural])
+    return ()
+  where
+    roundTrip :: Natural -> Assertion
+    roundTrip n = do
+      [Only n'] <- query conn "SELECT ?::bigint" (Only n)
+      n' @?= n
 
 
 testGeneric1 :: TestEnv -> Assertion
