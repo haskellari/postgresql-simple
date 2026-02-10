@@ -1,0 +1,7 @@
+packages: .
+tests: true
+
+constraints: unix installed
+
+package postgresql-libpq
+  flags: -use-pkg-config

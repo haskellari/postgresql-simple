@@ -14,7 +14,8 @@ jobs:
     strategy:
       matrix:
         os: [macos-latest, windows-latest]
-        ghc: ['9.4.8','9.6.6','9.8.2','9.10.1']
+        # Older GHCs need LLVM on macos-latest (ARM)
+        ghc: ['9.4.8','9.6.6','9.8.2','9.10.2']
       fail-fast: false
     timeout-minutes:
       60
@@ -29,18 +30,19 @@ jobs:
         uses: haskell-actions/setup@v2
         with:
           ghc-version: ${{ matrix.ghc }}
-          cabal-version: '3.12.1.0'
+          cabal-version: '3.10.2.0'
 
       - name: Set up PostgreSQL
-        uses: ikalnytskyi/action-setup-postgres@v6
+        uses: ikalnytskyi/action-setup-postgres@v8
         id: postgres
         with:
           username: ci
           password: sw0rdfish
           database: test
+          postgres-version: "14"
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Cache
         uses: actions/cache@v4
@@ -48,6 +50,20 @@ jobs:
           path: ${{ steps.setup-haskell.outputs.cabal-store }}
           key: ${{ runner.os }}-${{ matrix.ghc }}-${{ github.sha }}
           restore-keys: ${{ runner.os }}-${{ matrix.ghc }}-
+
+      - name: cabal.project (win)
+        if: matrix.os == 'windows-latest'
+        run: cp cabal.project.win cabal.project
+
+      - name: cabal.project (macos)
+        if: matrix.os == 'macos-latest'
+        run: cp cabal.project.macos cabal.project
+
+      - name: ghc-pkg dump
+        run: ghc-pkg list
+
+      - name: Dependencies
+        run: cabal build all --enable-tests --only-dependencies
 
       - name: Build
         run: cabal build all --enable-tests
