@@ -66,7 +66,7 @@ copy conn template qs = do
 -- | Issue a @COPY FROM STDIN@ or @COPY TO STDOUT@ query.   In the former
 --   case, the connection's state will change to @CopyIn@;  in the latter,
 --   @CopyOut@.  The connection must be in the ready state in order
---   to call this function.  Does not perform parameter subsitution.
+--   to call this function.  Does not perform parameter substitution.
 
 copy_ :: Connection -> Query -> IO ()
 copy_ conn (Query q) = do

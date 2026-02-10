@@ -647,7 +647,7 @@ okInt = ok32
 okInt = ok64
 #endif
 
--- | eq and \/ are used to imlement what Macro stuff did,
+-- | eq and \/ are used to implement what Macro stuff did,
 -- i.e. mkCompats and inlineTypoid
 eq :: PQ.Oid -> PQ.Oid -> Bool
 eq = (==)
