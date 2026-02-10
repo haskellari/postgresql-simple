@@ -625,7 +625,7 @@ escapeByteaConn = escapeWrap PQ.escapeByteaConn
 breakOnSingleQuestionMark :: ByteString -> (ByteString, ByteString)
 breakOnSingleQuestionMark b = go (B8.empty, b)
   where go (x,bs) = (x `B8.append` x',bs')
-                -- seperate from first QM
+                -- separate from first QM
           where tup@(noQ, restWithQ) = B8.break (=='?') bs
                 -- if end of query, just return
                 -- else check for second QM in 'go2'
