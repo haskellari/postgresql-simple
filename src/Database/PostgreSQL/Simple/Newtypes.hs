@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE GeneralisedNewtypeDeriving #-}
 -- | Module with newtypes suitable to usage with @DerivingVia@ or standalone.
 --
 -- The newtypes are named after packages they wrap.
@@ -37,7 +38,7 @@ import qualified Data.Aeson as Aeson
 --  
 --  @since 0.6.3
 newtype Aeson a = Aeson a
-  deriving (Eq, Show, Read, Typeable, Functor)
+  deriving (Eq, Ord, Show, Read, Typeable, Functor, Aeson.FromJSON, Aeson.ToJSON)
 
 getAeson :: Aeson a -> a
 getAeson (Aeson a) = a
