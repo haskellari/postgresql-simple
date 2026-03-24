@@ -26,13 +26,13 @@ jobs:
 
       - name: Set up Haskell
         id: setup-haskell
-        uses: haskell-actions/setup@v2
+        uses: haskell-actions/setup@f9150cb1d140e9a9271700670baa38991e6fa25c # v2.10.3
         with:
           ghc-version: ${{ matrix.ghc }}
           cabal-version: '3.12.1.0'
 
       - name: Set up PostgreSQL
-        uses: ikalnytskyi/action-setup-postgres@v6
+        uses: ikalnytskyi/action-setup-postgres@687404e7b78b0b3471751635e69f70d54a09d6e7 # v6
         id: postgres
         with:
           username: ci
