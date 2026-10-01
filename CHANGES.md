@@ -1,3 +1,12 @@
+### Version 0.7.0.2 (2026-10-01)
+
+  * Support GHC-9.14.1. Widen `base`, `template-haskell` and `containers`
+    upper bounds accordingly.
+  * Fix test suite flakiness: all tests shared a single `Connection`, and
+    `tasty`'s default of running tests concurrently (one thread per core)
+    could interleave queries from different tests on that connection,
+    which libpq does not support. Tests now run sequentially.
+
 ### Version 0.7.0.0 (2023-07-31)
 
   * Remove Eq Null instance. (Future `base` may break it, we remove it profilacticly).
