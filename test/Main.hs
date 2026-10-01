@@ -51,6 +51,7 @@ import System.Environment (getEnvironment)
 
 import Test.Tasty
 import Test.Tasty.Golden
+import Test.Tasty.Runners (NumThreads(..))
 import Notify
 import Serializable
 import Time
@@ -623,7 +624,12 @@ withTestEnv connstr cb =
 
 main :: IO ()
 main = withConnstring $ \connstring -> do
-    withTestEnv connstring (defaultMain . tests)
+    -- All tests share a single 'Connection' (see 'TestEnv'), and libpq
+    -- only ever allows one command in flight per connection. tasty's
+    -- default 'NumThreads' runs independent top-level tests concurrently,
+    -- which corrupts that shared connection's protocol/transaction state,
+    -- so force sequential execution here.
+    withTestEnv connstring (defaultMain . localOption (NumThreads 1) . tests)
 
 withConnstring :: (BS8.ByteString -> IO ()) -> IO ()
 withConnstring kont = do
