@@ -15,7 +15,7 @@ jobs:
       matrix:
         os: [macos-latest, windows-latest]
         # Older GHCs need LLVM on macos-latest (ARM)
-        ghc: ['9.4.8','9.6.6','9.8.2','9.10.2']
+        ghc: ['9.4.8','9.6.6','9.8.2','9.10.2','9.14.1']
       fail-fast: false
     timeout-minutes:
       60
